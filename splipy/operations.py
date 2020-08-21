@@ -44,6 +44,12 @@ def Reverse(axis):
     return Index(index)
 
 
+class Rationalize(ControlPointOperation):
+
+    def __call__(self, cps):
+        return np.insert(cps, cps.shape[-1], np.ones(cps.shape[:-1]), cps.ndim - 1)
+
+
 class Roll(ControlPointOperation):
 
     def __init__(self, shift, axis):

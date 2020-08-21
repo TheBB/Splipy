@@ -9,7 +9,7 @@ from splipy import BSplineBasis
 from splipy.utils import reshape, rotation_matrix, is_singleton, ensure_listlike,\
                          check_direction, ensure_flatlist, check_section, sections,\
                          raise_order_1D
-from splipy.operations import TensorDot, Transpose, Identity, Roll, Reverse, Swap
+from splipy.operations import TensorDot, Transpose, Identity, Roll, Reverse, Swap, Rationalize
 
 __all__ = ['SplineObject']
 
@@ -315,10 +315,12 @@ class SplineStructure(object):
     def force_rational(self):
         """  Force a rational representation of the object.
 
-        :return: self
+        :return: ControlPointOperation
         """
+        if self.rational:
+            return Identity()
         self.rational = True
-        return self
+        return Rationalize()
 
     def __len__(self):
         """Return the number of control points (basis functions) for the object."""
@@ -1212,11 +1214,8 @@ class SplineObject(SplineStructure):
 
         :return: self
         """
-        if not self.rational:
-            dim = self.dimension
-            shape = self.controlpoints.shape
-            self.controlpoints = np.insert(self.controlpoints, dim, np.ones(shape[:-1]), self.pardim)
-        super().force_rational()
+        operation = super().force_rational()
+        self.controlpoints = operation(self.controlpoints)
         return self
 
     def split(self, knots, direction=0):
