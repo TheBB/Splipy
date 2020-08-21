@@ -38,10 +38,17 @@ class Index(ControlPointOperation):
     def __call__(self, cps):
         return cps[self.index]
 
+    @classmethod
+    def single(cls, axis, index):
+        return cls((slice(None, None, None),) * axis + (index,))
 
-def Reverse(axis):
-    index = (slice(None, None, None),) * axis + (slice(None, None, -1),)
-    return Index(index)
+    @classmethod
+    def upto(cls, axis, index):
+        return cls((slice(None, None, None),) * axis + (slice(None, index, None),))
+
+    @classmethod
+    def reverse(cls, axis):
+        return cls((slice(None, None, None),) * axis + (slice(None, None, -1),))
 
 
 class Rationalize(ControlPointOperation):
@@ -78,9 +85,21 @@ class Transpose(ControlPointOperation):
     def __call__(self, cps):
         return cps.transpose(self.permutation)
 
+    @classmethod
+    def swap(cls, dir1, dir2, pardim):
+        permutation = list(range(pardim + 1))
+        permutation[dir1] = dir2
+        permutation[dir2] = dir1
+        return cls(tuple(permutation))
 
-def Swap(dir1, dir2, pardim):
-    permutation = list(range(pardim + 1))
-    permutation[dir1] = dir2
-    permutation[dir2] = dir1
-    return Transpose(tuple(permutation))
+
+class WeightedAverage(ControlPointOperation):
+
+    def __init__(self, axis, i, j, weight):
+        self.i = Index.single(axis, i).index
+        self.j = Index.single(axis, j).index
+        self.weight = weight
+
+    def __call__(self, cps):
+        cps[self.i] = self.weight * cps[self.i] + (1 - self.weight) * cps[self.j]
+        return cps
