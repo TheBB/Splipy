@@ -228,7 +228,7 @@ class SplineStructure(object):
 
         :param int nu,nv,...: Number of new knots to insert into each span
         :param int direction: Direction to refine in
-        :return: self
+        :return: ControlPointOperation
         """
         direction = kwargs.get('direction', None)
 
@@ -240,14 +240,15 @@ class SplineStructure(object):
         if len(ns) == 1:
             ns = [ns[0]] * self.pardim
 
+        operation = Identity()
         for n, d in zip(ns, directions):
             knots = self.knots(direction=d)  # excluding multiple knots
             new_knots = []
             for (k0, k1) in zip(knots[:-1], knots[1:]):
                 new_knots.extend(np.linspace(k0, k1, n+2)[1:-1])
-            self.insert_knot(new_knots, d)
+            operation *= SplineStructure.insert_knot(self, new_knots, d)
 
-        return self
+        return operation
 
     def reparam(self, *args, **kwargs):
         """  Redefine the parametric domain. This method accepts two calling
@@ -870,6 +871,31 @@ class SplineObject(SplineStructure):
         """
         operation = super().insert_knot(knot, direction)
         self.controlpoints = operation(self.controlpoints)
+
+    def refine(self, *ns, **kwargs):
+        """  Enrich the spline space by inserting knots into each existing knot
+        span.
+
+        This method supports three different usage patterns:
+
+        .. code:: python
+
+           # Refine each direction by a factor n
+           obj.refine(n)
+
+           # Refine a single direction by a factor n
+           obj.refine(n, direction='v')
+
+           # Refine all directions by given factors
+           obj.refine(nu, nv, ...)
+
+        :param int nu,nv,...: Number of new knots to insert into each span
+        :param int direction: Direction to refine in
+        :return: ControlPointOperation
+        """
+        operation = super().refine(*ns, **kwargs)
+        self.controlpoints = operation(self.controlpoints)
+        return self
 
     def translate(self, x):
         """  Translate (i.e. move) the object by a given distance.
