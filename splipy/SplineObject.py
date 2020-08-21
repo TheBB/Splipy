@@ -31,7 +31,298 @@ def evaluate(bases, cps, tensor=True):
     return cps
 
 
-class SplineObject(object):
+class SplineStructure(object):
+    """Master class for objects with a spline structure, but
+    potentially no control points.  This class can be used directly
+    for operations that purely have to do with knot vectors etc.
+    """
+
+    def __init__(self, bases=None, rational=False):
+        bases = [(b.clone() if b else BSplineBasis()) for b in bases]
+        self.bases = bases
+        self.rational = rational
+
+    def structure(self):
+        """  Return a SplineStructure representation of the current
+        object, without control points.
+        """
+        return SplineStructure(self.bases, self.rational)
+
+    def with_controlpoints(self, controlpoints, raw=False):
+        """Construct a spline object with the given structure and
+        control points.
+
+        :param array-like controlpoints: An *n1* × *n2* × ... × *d* matrix of
+            control points
+        :param bool raw: If True, skip any control point reordering.
+            (For internal use.)
+        """
+        constructors = [c for c in SplineObject.__subclasses__() if c._intended_pardim == len(self.bases)]
+        if constructors:
+            constructor = constructors[0]
+            args = [*self.bases, controlpoints, self.rational]
+            return constructor(*args, raw=raw)
+        else:
+            return SplineObject(self.bases, controlpoints, self.rational, raw=True)
+
+    def _validate_domain(self, *params):
+        """  Check whether the given evaluation parameters are valid.
+
+        :raises ValueError: If the parameters are outside the domain
+        """
+        for b, p in zip(self.bases, params):
+            b.snap(p)
+            if b.periodic < 0:
+                if min(p) < b.start() or b.end() < max(p):
+                    raise ValueError('Evaluation outside parametric domain')
+
+    @property
+    def pardim(self):
+        """  The number of parametric dimensions: 1 for curves, 2 for surfaces, 3
+        for volumes, etc.
+        """
+        return len(self.bases)
+
+    def section(self, *args, **kwargs):
+        """  Returns a section from the object. A section can be any sub-object of
+        parametric dimension not exceeding that of the object. E.g. for a
+        volume, sections include vertices, edges, faces, etc.
+
+        The arguments are control point indices for each direction. `None`
+        means that direction should be variable in the returned object.
+
+        :param u,v,...: Control point indices
+        :type u,v,...: int or None
+        :return: Section
+        :rtype: SplineStructure
+        """
+        section = check_section(*args, pardim=self.pardim, **kwargs)
+        bases = [b for b, p in zip(self.bases, section) if p is None]
+        return SplineStructure(bases, self.rational)
+
+    def start(self, direction=None):
+        """  Return the start of the parametric domain.
+
+        If `direction` is given, returns the start of that direction, as a
+        float. If it is not given, returns the start of all directions, as a
+        tuple.
+
+        :param int direction: Direction in which to get the start.
+        :raises ValueError: For invalid direction
+        """
+        if direction is None:
+            return tuple(b.start() for b in self.bases)
+        direction = check_direction(direction, self.pardim)
+        return self.bases[direction].start()
+
+    def end(self, direction=None):
+        """  Return the end of the parametric domain.
+
+        If `direction` is given, returns the end of that direction, as a float.
+        If it is not given, returns the end of all directions, as a tuple.
+
+        :param int direction: Direction in which to get the end.
+        :raises ValueError: For invalid direction
+        """
+        if direction is None:
+            return tuple(b.end() for b in self.bases)
+        direction = check_direction(direction, self.pardim)
+        return self.bases[direction].end()
+
+    def order(self, direction=None):
+        """  Return polynomial order (degree + 1).
+
+        If `direction` is given, returns the order of that direction, as an
+        int. If it is not given, returns the order of all directions, as a
+        tuple.
+
+        :param int direction: Direction in which to get the order.
+        :raises ValueError: For invalid direction
+        """
+        if direction is None:
+            return tuple(b.order for b in self.bases)
+        direction = check_direction(direction, self.pardim)
+        return self.bases[direction].order
+
+    def knots(self, direction=None, with_multiplicities=False):
+        """  Return knots vector
+
+        If `direction` is given, returns the knots in that direction, as a
+        list. If it is not given, returns the knots of all directions, as a
+        tuple.
+
+        :param int direction: Direction in which to get the knots.
+        :param bool with_multiplicities: If true, return knots with
+            multiplicities (i.e. repeated).
+        :raises ValueError: For invalid direction
+        """
+        getter = attrgetter('knots') if with_multiplicities else methodcaller('knot_spans')
+        if direction is None:
+            return tuple(getter(b) for b in self.bases)
+        direction = check_direction(direction, self.pardim)
+        return getter(self.bases[direction])
+
+    def reverse(self, direction=0):
+        """  Swap the direction of a parameter by making it go in the reverse
+        direction. The parametric domain remains unchanged.
+
+        :param int direction: The direction to flip.
+        :return: self
+        """
+        direction = check_direction(direction, self.pardim)
+        self.bases[direction].reverse()
+        return self
+
+    def swap(self, dir1=0, dir2=1):
+        """  Swaps two parameter directions.
+
+        This function silently passes for curves.
+
+        :param direction dir1: The first direction (default u)
+        :param direction dir2: The second direction (default v)
+        :return: self
+        """
+        if self.pardim == 1:
+            return
+
+        dir1 = check_direction(dir1, self.pardim)
+        dir2 = check_direction(dir2, self.pardim)
+        self.bases[dir1], self.bases[dir2] = self.bases[dir2], self.bases[dir1]
+        return self
+
+    def insert_knot(self, knot, direction=0):
+        """  Insert a new knot into the spline structure.
+
+        :param int direction: The direction to insert in
+        :param knot: The new knot(s) to insert
+        :type knot: float or [float]
+        :raises ValueError: For invalid direction
+        :return: Transformation matrix for control points
+        """
+        # for single-value input, wrap it into a list
+        knot = ensure_listlike(knot)
+        direction = check_direction(direction, self.pardim)
+
+        C = np.identity(self.shape[direction])
+        for k in knot:
+            C = self.bases[direction].insert_knot(k) @ C
+        return C
+
+    def refine(self, *ns, **kwargs):
+        """  Enrich the spline space by inserting knots into each existing knot
+        span.
+
+        This method supports three different usage patterns:
+
+        .. code:: python
+
+           # Refine each direction by a factor n
+           obj.refine(n)
+
+           # Refine a single direction by a factor n
+           obj.refine(n, direction='v')
+
+           # Refine all directions by given factors
+           obj.refine(nu, nv, ...)
+
+        :param int nu,nv,...: Number of new knots to insert into each span
+        :param int direction: Direction to refine in
+        :return: self
+        """
+        direction = kwargs.get('direction', None)
+
+        if len(ns) == 1 and direction is not None:
+            directions = [check_direction(direction, self.pardim)]
+        else:
+            directions = range(self.pardim)
+
+        if len(ns) == 1:
+            ns = [ns[0]] * self.pardim
+
+        for n, d in zip(ns, directions):
+            knots = self.knots(direction=d)  # excluding multiple knots
+            new_knots = []
+            for (k0, k1) in zip(knots[:-1], knots[1:]):
+                new_knots.extend(np.linspace(k0, k1, n+2)[1:-1])
+            self.insert_knot(new_knots, d)
+
+        return self
+
+    def reparam(self, *args, **kwargs):
+        """  Redefine the parametric domain. This method accepts two calling
+        conventions:
+
+        `reparametrize(u, v, ...)` reparametrizes each direction to the domains
+        given by the tuples *u*, *v*, etc. It is equivalent to calling
+        `reparametrize(u[0], u[1])` on each basis. The default domain for
+        directions not given is (0,1). In particular, if no arguments are
+        given, the new parametric domain will be the unit (hyper)cube.
+
+        `reparametrize(u, direction=d)` reparametrizes just the direction given
+        by *d* and leaves the others untouched.
+
+        :param tuple u, v, ...: New parametric domains, default to (0,1)
+        :param int direction: The direction to reparametrize
+        :return: self
+        """
+        if 'direction' not in kwargs:
+            # Pad the args with (0, 1) for the extra directions
+            args = list(args) + [(0, 1)] * (len(self.bases) - len(args))
+            for b, (start, end) in zip(self.bases, args):
+                b.reparam(start, end)
+        else:
+            direction = kwargs['direction']
+            direction = check_direction(direction, self.pardim)
+            if len(args) == 0:
+                self.bases[direction].reparam(0,1)
+            else:
+                start, end = args[0]
+                self.bases[direction].reparam(start, end)
+        return self
+
+    def periodic(self, direction=0):
+        """  Return true if the spline structure is periodic in the
+        given parametric direction.
+        """
+        direction = check_direction(direction, self.pardim)
+        return self.bases[direction].periodic > -1
+
+    def force_rational(self):
+        """  Force a rational representation of the object.
+
+        :return: self
+        """
+        self.rational = True
+        return self
+
+    def __len__(self):
+        """Return the number of control points (basis functions) for the object."""
+        n = 1
+        for b in self.bases:
+            n *= b.num_functions()
+        return n
+
+    @property
+    def shape(self):
+        """The dimensions of the control point array."""
+        return tuple(b.num_functions() for b in self.bases)
+
+    @classmethod
+    def make_splines_compatible(cls, spline1, spline2):
+        """Ensure that two spline structrures are compatible.  This
+        will ensure that they are both rational or nonrational.
+
+        :param SplineStructure spline1: The first spline structure
+        :param SplineStructure spline2: The second spline structure
+        """
+        # make both rational (if needed)
+        if spline1.rational:
+            spline2.force_rational()
+        elif spline2.rational:
+            spline1.force_rational()
+
+
+class SplineObject(SplineStructure):
     """  Master class for spline objects with arbitrary dimensions.
 
     This class should be subclassed instead of used directly.
@@ -56,13 +347,13 @@ class SplineObject(object):
         :param bool raw: If True, skip any control point reordering.
             (For internal use.)
         """
-        bases = [(b.clone() if b else BSplineBasis()) for b in bases]
-        self.bases = bases
+        super().__init__(bases, rational)
+
         if controlpoints is None:
             # `product' produces tuples in row-major format (the last input varies quickest)
             # We want them in column-major format, so we reverse the basis orders, and then
             # also reverse the output tuples
-            controlpoints = [c[::-1] for c in product(*(b.greville() for b in bases[::-1]))]
+            controlpoints = [c[::-1] for c in product(*(b.greville() for b in self.bases[::-1]))]
 
             # Minimum two dimensions
             if len(controlpoints[0]) == 1:
@@ -74,23 +365,11 @@ class SplineObject(object):
 
         self.controlpoints = np.array(controlpoints)
         self.dimension = self.controlpoints.shape[-1] - rational
-        self.rational = rational
 
         if not raw:
-            shape = tuple(b.num_functions() for b in bases)
+            shape = tuple(b.num_functions() for b in self.bases)
             ncomps = self.dimension + rational
             self.controlpoints = reshape(self.controlpoints, shape, order='F', ncomps=ncomps)
-
-    def _validate_domain(self, *params):
-        """  Check whether the given evaluation parameters are valid.
-
-        :raises ValueError: If the parameters are outside the domain
-        """
-        for b, p in zip(self.bases, params):
-            b.snap(p)
-            if b.periodic < 0:
-                if min(p) < b.start() or b.end() < max(p):
-                    raise ValueError('Evaluation outside parametric domain')
 
     def evaluate(self, *params, **kwargs):
         """  Evaluate the object at given parametric values.
@@ -296,7 +575,6 @@ class SplineObject(object):
             args = bases + [derivative_cps] + [self.rational]
             return constructor(*args, raw=True)
 
-
     def tangent(self, *params, **kwargs):
         """  Evaluate the tangents of the object at the given parametric values.
 
@@ -396,17 +674,14 @@ class SplineObject(object):
         :return: Section
         :rtype: SplineObject or np.array
         """
+        structure = super().section(*args, **kwargs)
         section = check_section(*args, pardim=self.pardim, **kwargs)
         unwrap_points = kwargs.get('unwrap_points', True)
 
         slices = tuple(slice(None) if p is None else p for p in section)
-        bases = [b for b, p in zip(self.bases, section) if p is None]
-        if bases or not unwrap_points:
-            classes = [c for c in SplineObject.__subclasses__() if c._intended_pardim == len(bases)]
-            if classes:
-                args = bases + [self.controlpoints[slices], self.rational]
-                return classes[0](*args, raw=True)
-            return SplineObject(bases, self.controlpoints[slices], self.rational, raw=True)
+        # bases = [b for b, p in zip(self.bases, section) if p is None]
+        if structure.pardim > 0 or not unwrap_points:
+            return structure.with_controlpoints(self.controlpoints[slices], raw=True)
         return self.controlpoints[slices]
 
     def set_order(self, *order):
@@ -427,7 +702,9 @@ class SplineObject(object):
 
     def raise_order(self, *raises):
         """  Raise the polynomial order of the object. If only one argument is
-        given, the order is raised equally over all directions. The explicit version is only implemented on open knot vectors. The function raise_order_implicit is used otherwise
+        given, the order is raised equally over all directions. The
+        explicit version is only implemented on open knot vectors. The
+        function raise_order_implicit is used otherwise
 
         :param int u,v,...: Number of times to raise the order in a given
             direction.
@@ -534,68 +811,6 @@ class SplineObject(object):
         args = new_bases + [new_controlpts] + [self.rational]
         return constructor(*args, raw=True)
 
-    def start(self, direction=None):
-        """  Return the start of the parametric domain.
-
-        If `direction` is given, returns the start of that direction, as a
-        float. If it is not given, returns the start of all directions, as a
-        tuple.
-
-        :param int direction: Direction in which to get the start.
-        :raises ValueError: For invalid direction
-        """
-        if direction is None:
-            return tuple(b.start() for b in self.bases)
-        direction = check_direction(direction, self.pardim)
-        return self.bases[direction].start()
-
-    def end(self, direction=None):
-        """  Return the end of the parametric domain.
-
-        If `direction` is given, returns the end of that direction, as a float.
-        If it is not given, returns the end of all directions, as a tuple.
-
-        :param int direction: Direction in which to get the end.
-        :raises ValueError: For invalid direction
-        """
-        if direction is None:
-            return tuple(b.end() for b in self.bases)
-        direction = check_direction(direction, self.pardim)
-        return self.bases[direction].end()
-
-    def order(self, direction=None):
-        """  Return polynomial order (degree + 1).
-
-        If `direction` is given, returns the order of that direction, as an
-        int. If it is not given, returns the order of all directions, as a
-        tuple.
-
-        :param int direction: Direction in which to get the order.
-        :raises ValueError: For invalid direction
-        """
-        if direction is None:
-            return tuple(b.order for b in self.bases)
-        direction = check_direction(direction, self.pardim)
-        return self.bases[direction].order
-
-    def knots(self, direction=None, with_multiplicities=False):
-        """  Return knots vector
-
-        If `direction` is given, returns the knots in that direction, as a
-        list. If it is not given, returns the knots of all directions, as a
-        tuple.
-
-        :param int direction: Direction in which to get the knots.
-        :param bool with_multiplicities: If true, return knots with
-            multiplicities (i.e. repeated).
-        :raises ValueError: For invalid direction
-        """
-        getter = attrgetter('knots') if with_multiplicities else methodcaller('knot_spans')
-        if direction is None:
-            return tuple(getter(b) for b in self.bases)
-        direction = check_direction(direction, self.pardim)
-        return getter(self.bases[direction])
-
     def reverse(self, direction=0):
         """  Swap the direction of a parameter by making it go in the reverse
         direction. The parametric domain remains unchanged.
@@ -603,8 +818,7 @@ class SplineObject(object):
         :param int direction: The direction to flip.
         :return: self
         """
-        direction = check_direction(direction, self.pardim)
-        self.bases[direction].reverse()
+        super().reverse(direction)
 
         # This creates the following slice programmatically
         # array[:, :, :, ..., ::-1,]
@@ -631,15 +845,13 @@ class SplineObject(object):
 
         dir1 = check_direction(dir1, self.pardim)
         dir2 = check_direction(dir2, self.pardim)
+        super().swap(dir1, dir2)
 
         # Reorder control points
         new_directions = list(range(self.pardim + 1))
         new_directions[dir1] = dir2
         new_directions[dir2] = dir1
         self.controlpoints = self.controlpoints.transpose(new_directions)
-
-        # Swap knot vectors
-        self.bases[dir1], self.bases[dir2] = self.bases[dir2], self.bases[dir1]
 
         return self
 
@@ -652,92 +864,11 @@ class SplineObject(object):
         :raises ValueError: For invalid direction
         :return: self
         """
-        shape  = self.controlpoints.shape
-
-        # for single-value input, wrap it into a list
-        knot = ensure_listlike(knot)
-
+        C = super().insert_knot(knot, direction)
         direction = check_direction(direction, self.pardim)
 
-        C = np.identity(shape[direction])
-        for k in knot:
-            C = self.bases[direction].insert_knot(k) @ C
         self.controlpoints = np.tensordot(C, self.controlpoints, axes=(1, direction))
         self.controlpoints = self.controlpoints.transpose(transpose_fix(self.pardim, direction))
-
-        return self
-
-    def refine(self, *ns, **kwargs):
-        """  Enrich the spline space by inserting knots into each existing knot
-        span.
-
-        This method supports three different usage patterns:
-
-        .. code:: python
-
-           # Refine each direction by a factor n
-           obj.refine(n)
-
-           # Refine a single direction by a factor n
-           obj.refine(n, direction='v')
-
-           # Refine all directions by given factors
-           obj.refine(nu, nv, ...)
-
-        :param int nu,nv,...: Number of new knots to insert into each span
-        :param int direction: Direction to refine in
-        :return: self
-        """
-        direction = kwargs.get('direction', None)
-
-        if len(ns) == 1 and direction is not None:
-            directions = [check_direction(direction, self.pardim)]
-        else:
-            directions = range(self.pardim)
-
-        if len(ns) == 1:
-            ns = [ns[0]] * self.pardim
-
-        for n, d in zip(ns, directions):
-            knots = self.knots(direction=d)  # excluding multiple knots
-            new_knots = []
-            for (k0, k1) in zip(knots[:-1], knots[1:]):
-                new_knots.extend(np.linspace(k0, k1, n+2)[1:-1])
-            self.insert_knot(new_knots, d)
-
-        return self
-
-    def reparam(self, *args, **kwargs):
-        """  Redefine the parametric domain. This function accepts two calling
-        conventions:
-
-        `reparametrize(u, v, ...)` reparametrizes each direction to the domains
-        given by the tuples *u*, *v*, etc. It is equivalent to calling
-        `reparametrize(u[0], u[1])` on each basis. The default domain for
-        directions not given is (0,1). In particular, if no arguments are
-        given, the new parametric domain will be the unit (hyper)cube.
-
-        `reparametrize(u, direction=d)` reparametrizes just the direction given
-        by *d* and leaves the others untouched.
-
-        :param tuple u, v, ...: New parametric domains, default to (0,1)
-        :param int direction: The direction to reparametrize
-        :return: self
-        """
-        if 'direction' not in kwargs:
-            # Pad the args with (0, 1) for the extra directions
-            args = list(args) + [(0, 1)] * (len(self.bases) - len(args))
-            for b, (start, end) in zip(self.bases, args):
-                b.reparam(start, end)
-        else:
-            direction = kwargs['direction']
-            direction = check_direction(direction, self.pardim)
-            if len(args) == 0:
-                self.bases[direction].reparam(0,1)
-            else:
-                start, end = args[0]
-                self.bases[direction].reparam(start, end)
-
         return self
 
     def translate(self, x):
@@ -1058,12 +1189,6 @@ class SplineObject(object):
 
         return self
 
-    def periodic(self, direction=0):
-        """Returns true if the spline object is periodic in the given parametric direction"""
-        direction = check_direction(direction, self.pardim)
-
-        return self.bases[direction].periodic > -1
-
     def force_rational(self):
         """  Force a rational representation of the object.
 
@@ -1075,8 +1200,7 @@ class SplineObject(object):
             dim = self.dimension
             shape = self.controlpoints.shape
             self.controlpoints = np.insert(self.controlpoints, dim, np.ones(shape[:-1]), self.pardim)
-            self.rational = 1
-
+        super().force_rational()
         return self
 
     def split(self, knots, direction=0):
@@ -1210,25 +1334,11 @@ class SplineObject(object):
         constructor = constructor[0]
         return constructor(*args, raw=True)
 
-    @property
-    def pardim(self):
-        """  The number of parametric dimensions: 1 for curves, 2 for surfaces, 3
-        for volumes, etc.
-        """
-        return len(self.controlpoints.shape)-1
-
     def clone(self):
         """Clone the object."""
         return copy.deepcopy(self)
 
     __call__ = evaluate
-
-    def __len__(self):
-        """Return the number of control points (basis functions) for the object."""
-        n = 1
-        for b in self.bases:
-            n *= b.num_functions()
-        return n
 
     def _unravel_flat_index(self, i):
         """Unravels a flat index i to multi-indexes.
@@ -1302,11 +1412,6 @@ class SplineObject(object):
         unraveled = self._unravel_flat_index(i)
         self.controlpoints[unraveled] = cp
 
-    @property
-    def shape(self):
-        """The dimensions of the control point array."""
-        return self.controlpoints.shape[:-1]
-
     def __iadd__(self, x):
         self.translate(x)
         return self
@@ -1362,11 +1467,7 @@ class SplineObject(object):
         :param SplineObject spline1: The first spline
         :param SplineObject spline2: The second spline
         """
-        # make both rational (if needed)
-        if spline1.rational:
-            spline2.force_rational()
-        elif spline2.rational:
-            spline1.force_rational()
+        SplineStructure.make_splines_compatible(spline1, spline2)
 
         # make both in the same geometric space
         if spline1.dimension > spline2.dimension:
