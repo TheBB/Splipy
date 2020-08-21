@@ -9,7 +9,7 @@ from splipy import BSplineBasis
 from splipy.utils import reshape, rotation_matrix, is_singleton, ensure_listlike,\
                          check_direction, ensure_flatlist, check_section, sections,\
                          raise_order_1D
-from splipy.operations import TensorDot, Transpose
+from splipy.operations import TensorDot, Transpose, Identity, Roll
 
 __all__ = ['SplineObject']
 
@@ -280,6 +280,29 @@ class SplineStructure(object):
                 start, end = args[0]
                 self.bases[direction].reparam(start, end)
         return self
+
+    def lower_periodic(self, periodic, direction=0):
+        """  Sets the periodicity of the spline object in the given direction,
+        keeping the geometry unchanged.
+
+        :param int periodic: new periodicity, i.e. the basis is C^k over the start/end
+        :param int direction: the parametric direction of the basis to modify
+        :return: ControlPointOperation
+        """
+        direction = check_direction(direction, self.pardim)
+        operation = Identity()
+
+        b = self.bases[direction]
+        while periodic < b.periodic:
+            operation *= SplineStructure.insert_knot(self, self.start(direction), direction)
+            operation *= Roll(-1, direction)
+            b.roll(1)
+            b.periodic -= 1
+            b.knots = b.knots[:-1]
+        if periodic > b.periodic:
+            raise ValueError('Cannot raise periodicity')
+
+        return operation
 
     def periodic(self, direction=0):
         """  Return true if the spline structure is periodic in the
@@ -1153,18 +1176,8 @@ class SplineObject(SplineStructure):
         :param int direction: the parametric direction of the basis to modify
         :return: self
         """
-        direction = check_direction(direction, self.pardim)
-
-        b  = self.bases[direction]
-        while periodic < b.periodic:
-            self.insert_knot(self.start(direction), direction)
-            self.controlpoints = np.roll(self.controlpoints, -1, direction)
-            b.roll(1)
-            b.periodic -= 1
-            b.knots = b.knots[:-1]
-        if periodic > b.periodic:
-            raise ValueError('Cannot raise periodicity')
-
+        operation = super().lower_periodic(periodic, direction)
+        self.controlpoints = operation(self.controlpoints)
         return self
 
     def set_dimension(self, new_dim):

@@ -24,6 +24,22 @@ class Compose(ControlPointOperation):
         return self.second(self.first(cps))
 
 
+class Identity(ControlPointOperation):
+
+    def __call__(self, cps):
+        return cps
+
+
+class Roll(ControlPointOperation):
+
+    def __init__(self, shift, axis):
+        self.shift = shift
+        self.axis = axis
+
+    def __call__(self, cps):
+        return np.roll(cps, self.shift, self.axis)
+
+
 class TensorDot(ControlPointOperation):
 
     def __init__(self, matrix, axes):
