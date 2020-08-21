@@ -30,6 +30,20 @@ class Identity(ControlPointOperation):
         return cps
 
 
+class Index(ControlPointOperation):
+
+    def __init__(self, index):
+        self.index = index
+
+    def __call__(self, cps):
+        return cps[self.index]
+
+
+def Reverse(axis):
+    index = (slice(None, None, None),) * axis + (slice(None, None, -1),)
+    return Index(index)
+
+
 class Roll(ControlPointOperation):
 
     def __init__(self, shift, axis):
@@ -57,3 +71,10 @@ class Transpose(ControlPointOperation):
 
     def __call__(self, cps):
         return cps.transpose(self.permutation)
+
+
+def Swap(dir1, dir2, pardim):
+    permutation = list(range(pardim + 1))
+    permutation[dir1] = dir2
+    permutation[dir2] = dir1
+    return Transpose(tuple(permutation))

@@ -9,7 +9,7 @@ from splipy import BSplineBasis
 from splipy.utils import reshape, rotation_matrix, is_singleton, ensure_listlike,\
                          check_direction, ensure_flatlist, check_section, sections,\
                          raise_order_1D
-from splipy.operations import TensorDot, Transpose, Identity, Roll
+from splipy.operations import TensorDot, Transpose, Identity, Roll, Reverse, Swap
 
 __all__ = ['SplineObject']
 
@@ -172,7 +172,7 @@ class SplineStructure(object):
         """
         direction = check_direction(direction, self.pardim)
         self.bases[direction].reverse()
-        return self
+        return Reverse(direction)
 
     def swap(self, dir1=0, dir2=1):
         """  Swaps two parameter directions.
@@ -181,15 +181,15 @@ class SplineStructure(object):
 
         :param direction dir1: The first direction (default u)
         :param direction dir2: The second direction (default v)
-        :return: self
+        :return: ControlPointOperation
         """
         if self.pardim == 1:
-            return
+            return Identity()
 
         dir1 = check_direction(dir1, self.pardim)
         dir2 = check_direction(dir2, self.pardim)
         self.bases[dir1], self.bases[dir2] = self.bases[dir2], self.bases[dir1]
-        return self
+        return Swap(dir1, dir2, self.pardim)
 
     def insert_knot(self, knot, direction=0):
         """  Insert a new knot into the spline structure.
@@ -842,17 +842,8 @@ class SplineObject(SplineStructure):
         :param int direction: The direction to flip.
         :return: self
         """
-        super().reverse(direction)
-
-        # This creates the following slice programmatically
-        # array[:, :, :, ..., ::-1,]
-        # index=direction -----^
-        # :    => slice(None, None, None)
-        # ::-1 => slice(None, None, -1)
-        direction = check_direction(direction, self.pardim)
-        slices = [slice(None, None, None) for _ in range(direction)] + [slice(None, None, -1)]
-        self.controlpoints = self.controlpoints[tuple(slices)]
-
+        operation = super().reverse(direction)
+        self.controlpoints = operation(self.controlpoints)
         return self
 
     def swap(self, dir1=0, dir2=1):
@@ -864,19 +855,8 @@ class SplineObject(SplineStructure):
         :param direction dir2: The second direction (default v)
         :return: self
         """
-        if self.pardim == 1:
-            return
-
-        dir1 = check_direction(dir1, self.pardim)
-        dir2 = check_direction(dir2, self.pardim)
-        super().swap(dir1, dir2)
-
-        # Reorder control points
-        new_directions = list(range(self.pardim + 1))
-        new_directions[dir1] = dir2
-        new_directions[dir2] = dir1
-        self.controlpoints = self.controlpoints.transpose(new_directions)
-
+        operation = super().swap(dir1, dir2)
+        self.controlpoints = operation(self.controlpoints)
         return self
 
     def insert_knot(self, knot, direction=0):
