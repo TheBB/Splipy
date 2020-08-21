@@ -58,6 +58,7 @@ class SplineStructure(object):
         :param bool raw: If True, skip any control point reordering.
             (For internal use.)
         """
+        controlpoints = controlpoints.reshape(self.shape + (-1,))
         constructors = [c for c in SplineObject.__subclasses__() if c._intended_pardim == len(self.bases)]
         if constructors:
             constructor = constructors[0]
