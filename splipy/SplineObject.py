@@ -9,6 +9,7 @@ from splipy import BSplineBasis
 from splipy.utils import reshape, rotation_matrix, is_singleton, ensure_listlike,\
                          check_direction, ensure_flatlist, check_section, sections,\
                          raise_order_1D
+from splipy.operations import TensorDot, Transpose
 
 __all__ = ['SplineObject']
 
@@ -197,7 +198,7 @@ class SplineStructure(object):
         :param knot: The new knot(s) to insert
         :type knot: float or [float]
         :raises ValueError: For invalid direction
-        :return: Transformation matrix for control points
+        :return: ControlPointOperation
         """
         # for single-value input, wrap it into a list
         knot = ensure_listlike(knot)
@@ -206,7 +207,7 @@ class SplineStructure(object):
         C = np.identity(self.shape[direction])
         for k in knot:
             C = self.bases[direction].insert_knot(k) @ C
-        return C
+        return TensorDot(C, (1, direction)) * Transpose(transpose_fix(self.pardim, direction))
 
     def refine(self, *ns, **kwargs):
         """  Enrich the spline space by inserting knots into each existing knot
@@ -864,12 +865,8 @@ class SplineObject(SplineStructure):
         :raises ValueError: For invalid direction
         :return: self
         """
-        C = super().insert_knot(knot, direction)
-        direction = check_direction(direction, self.pardim)
-
-        self.controlpoints = np.tensordot(C, self.controlpoints, axes=(1, direction))
-        self.controlpoints = self.controlpoints.transpose(transpose_fix(self.pardim, direction))
-        return self
+        operation = super().insert_knot(knot, direction)
+        self.controlpoints = operation(self.controlpoints)
 
     def translate(self, x):
         """  Translate (i.e. move) the object by a given distance.
