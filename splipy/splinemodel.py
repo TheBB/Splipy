@@ -959,6 +959,12 @@ class SplineModel(object):
     def write_ifem(self, filename):
         IFEMWriter(self).write(filename)
 
+    def degenerate_nodes(self, pardim: int):
+        for node in self.catalogue.nodes(pardim):
+            lower_nodes = node.lower_nodes[pardim-1]
+            lower_ids = set(id(lower) for lower in lower_nodes)
+            if len(lower_ids) < len(lower_nodes):
+                yield node
 
 
 IFEMConnection = namedtuple('IFEMConnection', ['master', 'slave', 'midx', 'sidx', 'orient'])
