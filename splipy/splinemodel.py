@@ -140,6 +140,33 @@ class VertexDict(MutableMapping):
         return len(self._values)
 
 
+class EquivalenceClasses:
+    """Keeps track of equivalence classes with respect to an equivalence
+    relation."""
+
+    def __init__(self):
+        self.data = {}
+
+    def connect(self, a, b):
+        a_cls = self.data.get(a, {a})
+        b_cls = self.data.get(b, {b})
+        new_cls = {*a_cls, *b_cls}
+        for c in new_cls:
+            self.data[c] = new_cls
+
+    def cls(self, a):
+        return self.data.get(a, {a})
+
+    def classes(self):
+        unique_ids = set(id(cls) for cls in self.data.values())
+        retval = []
+        for cls in self.data.values():
+            if id(cls) in unique_ids:
+                retval.append(cls)
+                unique_ids.remove(id(cls))
+        return retval
+
+
 class OrientationError(RuntimeError):
     """An `OrientationError` is raised by certain methods in
     :class:`splipy.SplineModel.Orientation` indicating an inability to match
@@ -200,11 +227,11 @@ class Orientation(object):
         # Deal with the easy cases: dimension mismatch, and
         # comparing the shapes as multisets
         if cpa.pardim != cpb.pardim:
-            raise OrientationError("Mismatching parametric dimensions")
+            raise OrientationError(f"Mismatching parametric dimensions: {cpa.pardim} and {cpb.pardim}")
         if cpa.dimension != cpb.dimension:
-            raise OrientationError("Mismatching physical dimensions")
+            raise OrientationError(f"Mismatching physical dimensions: {cpa.dimension} and {cpb.dimension}")
         if Counter(cpa.shape) != Counter(cpb.shape):
-            raise OrientationError("Non-matching objects (different shape)")
+            raise OrientationError(f"Non-matching objects (different shape): {cpa.shape} and {cpb.shape}")
 
         cps_a = cpa.controlpoints
         cps_b = cpb.controlpoints
@@ -686,6 +713,9 @@ class ObjectCatalogue(object):
         # Internal mapping from tuples of lower-order nodes to lists of nodes
         self.internal = OrderedDict()
 
+        # Keep track of twin patches
+        self.twins = EquivalenceClasses()
+
         # Each catalogue has a catalogue of lower dimension
         # For points, we use a VertexDict
         if pardim > 0:
@@ -732,11 +762,11 @@ class ObjectCatalogue(object):
             if obj.rational:
                 cps = cps[..., :-1]
             if add:
-                node = TopologicalNode(obj, [], index=self.count)
+                view = TopologicalNode(obj, [], index=self.count)
                 self.count += 1
-                rval = self.lower.setdefault(cps, node).view()
+                rval = self.lower.setdefault(cps, view).view()
                 for cb in self.callbacks.get('add', []):
-                    cb(node)
+                    cb(view)
                 return rval
             return self.lower[cps].view()
 
@@ -770,7 +800,7 @@ class ObjectCatalogue(object):
         if len(candidates) == 1:
             try:
                 return candidates[0].view(obj)
-            except OrientationError:
+            except OrientationError as e:
                 if self.pardim in raise_on_twins:
                     raise OrientationError(
                         "Candidate nodes found but no orientation matched. "
@@ -781,7 +811,9 @@ class ObjectCatalogue(object):
                     )
             if not add:
                 raise KeyError("No such object found")
-            return self._add(obj, lower_nodes)
+            view = self._add(obj, lower_nodes)
+            self.twins.connect(view.node, candidates[0])
+            return view
 
         # If there are multiple candidates, twins must be allowed
         if self.pardim in raise_on_twins:
@@ -793,7 +825,10 @@ class ObjectCatalogue(object):
                 pass
         if not add:
             raise KeyError("No such object found")
-        return self._add(obj, lower_nodes)
+        view = self._add(obj, lower_nodes)
+        for c in candidates:
+            self.twins.connect(view.node, c)
+        return view
 
     def add(self, obj, raise_on_twins=()):
         """Add new nodes to the graph to accommodate the given object, then return the
@@ -847,6 +882,11 @@ class ObjectCatalogue(object):
                 return list(uniquify(chain.from_iterable(self.internal.values())))
             return list(uniquify(self.lower.values()))
         return self.lower.nodes(pardim)
+
+    def twin_classes(self, pardim):
+        if self.pardim == pardim:
+            return self.twins.classes()
+        return self.lower.twin_classes(pardim)
 
 
 # FIXME: This class is unfinished, and right now it doesn't do much other than
@@ -965,6 +1005,9 @@ class SplineModel(object):
             lower_ids = set(id(lower) for lower in lower_nodes)
             if len(lower_ids) < len(lower_nodes):
                 yield node
+
+    def twin_nodes(self, pardim: int):
+        return self.catalogue.twin_classes(pardim)
 
 
 IFEMConnection = namedtuple('IFEMConnection', ['master', 'slave', 'midx', 'sidx', 'orient'])
