@@ -551,7 +551,7 @@ def finitestrain_patch(bottom, right, top, left):
     return srf
 
 
-def thicken(curve, amount):
+def thicken(curve, amount) -> Surface:
     """Generate a surface by adding thickness to a curve.
 
     - For 2D curves this will generate a 2D planar surface with the curve
