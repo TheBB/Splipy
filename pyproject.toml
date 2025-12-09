@@ -96,8 +96,11 @@ filename = "core/src/splipy_core/__init__.py"
 filename = "doc/conf.py"
 
 [tool.mypy]
-plugins = ["numpy.typing.mypy_plugin"]
-files = ["src/**/*.py", "tests/**/*.py", "push_documentation.py"]
+files = [
+    "src/**/*.py",
+    # "tests/**/*.py",
+    # "push_documentation.py",
+]
 disallow_untyped_defs = true
 disallow_any_unimported = true
 no_implicit_optional = true

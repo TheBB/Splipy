@@ -204,7 +204,7 @@ def torus(minor_r=1, major_r=3, center=(0, 0, 0), normal=(0, 0, 1), xaxis=(1, 0,
     return flip_and_move_plane_geometry(result, center, normal)
 
 
-def edge_curves(*curves, **kwargs):
+def edge_curves(*curves, **kwargs) -> Surface:
     """Create the surface defined by the region between the input curves.
 
     In case of four input curves, these must be given in an ordered directional
@@ -793,7 +793,7 @@ def interpolate(x, bases, u=None):
     return Surface(bases[0], bases[1], cp.transpose(1, 0, 2).reshape((np.prod(surf_shape), dim)))
 
 
-def least_square_fit(x, bases, u):
+def least_square_fit(x, bases, u) -> Surface:
     """Perform a least-square fit of a point cloud `x` onto a spline basis.
 
     The points can be either a matrix (in which case the first index is

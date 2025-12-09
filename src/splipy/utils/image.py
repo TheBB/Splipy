@@ -1,17 +1,28 @@
 from __future__ import annotations
 
-__doc__ = "Implementation of image based mesh generation."
-
-import warnings
 from math import sqrt
+from typing import TYPE_CHECKING
 
 import numpy as np
+import numpy.typing as npt
 
 from splipy import curve_factory, surface_factory
 from splipy.basis import BSplineBasis
+from splipy.utils import knot_vector
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from splipy.curve import Curve
+    from splipy.surface import Surface
+    from splipy.typing import ArrayLike, FloatArray
+
+__doc__ = "Implementation of image based mesh generation."
 
 
-def get_corners(X, L=50, R=30, D=15):
+def get_corners(
+    X: npt.NDArray[np.floating | np.integer], L: int = 50, R: float = 30, D: float = 15
+) -> FloatArray:
     """Detects corners of traced outlines using the SAM04 algorithm.
 
     The outline is assumed to constitute a discrete closed curve where each
@@ -54,7 +65,6 @@ def get_corners(X, L=50, R=30, D=15):
         if d[index[I] - 1] < Y:
             d[index[I] - 1] = Y
 
-    I = np.where(d > 0)[0]
     # Rejects candidates which do not meet the lower metric bound D.
     index = d < D
     index2 = d >= D
@@ -94,7 +104,7 @@ def get_corners(X, L=50, R=30, D=15):
     return C
 
 
-def image_curves(filename):
+def image_curves(filename: str) -> list[Curve]:
     """Generate B-spline curves corresponding to the edges in a black/white
     mask image.
 
@@ -105,6 +115,7 @@ def image_curves(filename):
     import cv2
 
     im = cv2.imread(filename)
+    assert im is not None
 
     # initialize image holders
     imGrey = np.zeros((len(im), len(im[0])), np.uint8)
@@ -117,11 +128,7 @@ def image_curves(filename):
     cv2.threshold(imGrey, 128, 255, cv2.THRESH_BINARY, imBlack)
 
     # find contour curves in image
-    if cv2.__version__[0] == "3":
-        warnings.warn(FutureWarning("OpenCV v.3 will eventually be discontinued. Please upgrade."))
-        [_, contours, _] = cv2.findContours(imBlack, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
-    else:
-        [contours, _] = cv2.findContours(imBlack, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+    contours, _ = cv2.findContours(imBlack, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
 
     result = []
     for i in range(len(contours) - 1):  # for all contours (except the last one which is the edge)
@@ -135,7 +142,7 @@ def image_curves(filename):
             corners = get_corners(pts)  # recompute corners, since previous sem might be smooth
 
         n = len(pts)
-        parpt = list(range(n))
+        parpt: list[float] = list(range(n))
         for i in range(n):
             parpt[i] = float(parpt[i]) / (n - 1)
 
@@ -149,7 +156,7 @@ def image_curves(filename):
         # - up to a max of 100(ish) control points for large models
 
         # start off with a uniform(ish) knot vector
-        knot = []
+        knot: list[float] = []
         nStart = min(n // 10, 90)
         for i in range(nStart + 1):
             knot.append(int(1.0 * i * (n - 1) / nStart))
@@ -187,7 +194,7 @@ def image_curves(filename):
     return result
 
 
-def image_height(filename, N=[30, 30], p=[4, 4]):
+def image_height(filename: str, N: Sequence[int] = [30, 30], p: Sequence[int] = [4, 4]) -> Surface:
     """Generate a B-spline surface approximation given by the heightmap in a
     grayscale image.
 
@@ -201,6 +208,7 @@ def image_height(filename, N=[30, 30], p=[4, 4]):
     import cv2
 
     im = cv2.imread(filename)
+    assert im is not None
 
     width = len(im[0])
     height = len(im)
@@ -212,30 +220,21 @@ def image_height(filename, N=[30, 30], p=[4, 4]):
     cv2.cvtColor(im, cv2.COLOR_RGB2GRAY, imGrey)
 
     # guess uniform evaluation points and knot vectors
-    u = list(range(width))
-    v = list(range(height))
-    knot1 = [0] * (p[0] - 1) + list(range(N[0] - p[0] + 2)) + [N[0] - p[0] + 1] * (p[0] - 1)
-    knot2 = [0] * (p[1] - 1) + list(range(N[1] - p[1] + 2)) + [N[1] - p[1] + 1] * (p[1] - 1)
-
-    # normalize all values to be in range [0, 1]
-    u = [float(i) / u[-1] for i in u]
-    v = [float(i) / v[-1] for i in v]
-    knot1 = [float(i) / knot1[-1] for i in knot1]
-    knot2 = [float(i) / knot2[-1] for i in knot2]
+    u = np.linspace(0, 1, width)
+    v = np.linspace(0, 1, height)
+    knot1 = knot_vector(end=1, num_intervals=N[0] - p[0] + 1, endpoint_reps=p[0])
+    knot2 = knot_vector(end=1, num_intervals=N[1] - p[1] + 1, endpoint_reps=p[1])
 
     # flip and reverse image so coordinate (0,0) is at lower-left corner
-    imGrey = imGrey.T / 255.0
-    imGrey = np.flip(imGrey, axis=1)
     x, y = np.meshgrid(u, v, indexing="ij")
-    pts = np.stack([x, y, imGrey], axis=2)
+    pts = np.stack([x, y, np.flip(imGrey.T / 255.0, axis=1)], axis=2)
 
     basis1 = BSplineBasis(p[0], knot1)
     basis2 = BSplineBasis(p[1], knot2)
-
     return surface_factory.least_square_fit(pts, [basis1, basis2], [u, v])
 
 
-def image_convex_surface(filename):
+def image_convex_surface(filename: str) -> Surface:
     """Generate a single B-spline surface corresponding to convex black domain
     of a black/white mask image. The algorithm traces the boundary and searches
     for 4 natural corner points. It will then generate 4 boundary curves which
@@ -246,18 +245,20 @@ def image_convex_surface(filename):
     :rtype: :class:`splipy.Surface`
     """
     # generate boundary curve
-    crv = image_curves(filename)
+    curves = image_curves(filename)
 
     # error test input
-    if len(crv) != 1:
+    if len(curves) != 1:
         raise RuntimeError(
             "Error: image_convex_surface expects a single closed curve. Multiple curves detected"
         )
 
-    crv = crv[0]
+    crv = curves[0]
 
     # parametric value of corner candidates. These are all in the range [0,1] and both 0 and 1 is present
-    kinks = crv.get_kinks()
+    kinks = list(crv.get_kinks())
+
+    corners: ArrayLike
 
     # generate 4 corners
     if len(kinks) == 2:

@@ -2,13 +2,19 @@ from __future__ import annotations
 
 __doc__ = "Implementation of various smoothing operations on a per-controlpoint level."
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 from scipy import ndimage
 
 from . import check_direction
 
+if TYPE_CHECKING:
+    from splipy.splineobject import SplineObject
+    from splipy.typing import Direction
 
-def smooth(obj, comp=None):
+
+def smooth(obj: SplineObject, comp: Direction | None = None) -> None:
     """Smooth an object by setting the interior control points to the average of
     itself and all neighbours (e.g. 9 for surfaces, 27 for volumes). The edges
     are kept unchanged, and any rational weights are kept unchanged.
@@ -34,7 +40,7 @@ def smooth(obj, comp=None):
     # controlpoints[1:-1, 1:-1 , 1:-1, :] for non-rational volumes
     # controlpoints[ :  ,  :   ,  :  , :] for non-rational volumes which are
     #                                     periodic in all three parametric directions
-    interior = []
+    interior: list[slice] = []
     for pardim in range(len(n)):
         if obj.periodic(pardim):
             interior.append(slice(None, None, None))
@@ -47,5 +53,5 @@ def smooth(obj, comp=None):
     else:
         interior.append(slice(None, None, None))
 
-    interior = tuple(interior)
-    obj.controlpoints[interior] = new_controlpoints[interior]
+    ix = tuple(interior)
+    obj.controlpoints[ix] = new_controlpoints[ix]
