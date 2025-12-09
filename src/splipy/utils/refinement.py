@@ -1,22 +1,36 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, SupportsFloat, cast
+
 __doc__ = "Implementation of various refinement schemes."
 
 from math import atan, tan
 
 import numpy as np
 
-from . import check_direction, ensure_listlike_old
+from . import check_direction, ensure_listlike
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from splipy.splineobject import SplineObject
+    from splipy.typing import Direction, FloatArray
 
 
 # TODO(Eivind): put control over these tolerances somewhere. Modstate in splipy
 # seems to be the place for it, but we can't let splipy.utils influence the
 # structure of splipy.
-def knot_exists(existing_knots, new_knot):
-    return np.any(np.isclose(existing_knots, new_knot, atol=1e-7, rtol=1e-10))
+def knot_exists(existing_knots: FloatArray, new_knot: SupportsFloat) -> bool:
+    return bool(np.any(np.isclose(existing_knots, float(new_knot), atol=1e-7, rtol=1e-10)))
 
 
-def geometric_refine(obj, alpha, n, direction=0, reverse=False):
+def geometric_refine(
+    obj: SplineObject,
+    alpha: float,
+    n: int,
+    direction: Direction = 0,
+    reverse: bool = False,
+) -> SplineObject:
     """geometric_refine(obj, alpha, n, [direction=0], [reverse=False])
 
     Refine a spline object by making a geometric distribution of element sizes.
@@ -69,7 +83,12 @@ def geometric_refine(obj, alpha, n, direction=0, reverse=False):
     return obj
 
 
-def center_refine(obj, S, n, direction=0):
+def center_refine(
+    obj: SplineObject,
+    S: float,
+    n: int,
+    direction: Direction = 0,
+) -> SplineObject:
     """center_refine(obj, S, n, [direction=0])
 
     Refine an object towards the center in a direction, by sampling an
@@ -109,7 +128,12 @@ def center_refine(obj, S, n, direction=0):
     return obj
 
 
-def edge_refine(obj, S, n, direction=0):
+def edge_refine(
+    obj: SplineObject,
+    S: float,
+    n: int,
+    direction: Direction = 0,
+) -> SplineObject:
     """edge_refine(obj, S, n, [direction=0])
 
     Refine an object towards both edges in a direction, by sampling an
@@ -148,7 +172,7 @@ def edge_refine(obj, S, n, direction=0):
     return obj
 
 
-def _splitvector(len, parts):
+def _splitvector(len: int, parts: int) -> list[int]:
     delta = len // parts
     sizes = [delta for i in range(parts)]
     remainder = len - parts * delta
@@ -160,7 +184,7 @@ def _splitvector(len, parts):
     return result
 
 
-def subdivide(objs, n):
+def subdivide(objs: Sequence[SplineObject], n: int) -> list[SplineObject]:
     """Subdivide a list of objects by splitting them up along existing knot
     lines. The resulting partition will roughly the same number of elements on
     all pieces. By splitting along *n* lines, we generate *n* + 1 new blocks.
@@ -175,15 +199,18 @@ def subdivide(objs, n):
     :rtype: [:class:`splipy.SplineObject`]
     """
     pardim = objs[0].pardim  # 1 for curves, 2 for surfaces, 3 for volumes
-    n = ensure_listlike_old(n, pardim)
+    # n = ensure_listlike_old(n, pardim)
+    ns = ensure_listlike(n, pardim)
 
-    result = objs
+    result = list(objs)
     for d in range(pardim):
         # split all objects so far along direction d
-        new_results = []
+        new_results: list[SplineObject] = []
         for obj in result:
-            splitting_points = [obj.knots(d)[i] for i in _splitvector(len(obj.knots(d)), n[d] + 1)]
-            new_results += obj.split(splitting_points[1:], d)
+            splitting_points = [obj.knots(d)[i] for i in _splitvector(len(obj.knots(d)), ns[d] + 1)]
+
+            # TODO(Eivind): When we make split type-safe, fix this cast.
+            new_results += cast("list[SplineObject]", obj.split(splitting_points[1:], d))
 
         # only keep the smallest pieces in our result list
         result = new_results
