@@ -7,7 +7,6 @@ import numpy as np
 import scipy.sparse.linalg as splinalg
 
 from . import state
-
 from .basis import BSplineBasis
 from .splineobject import SplineObject
 from .utils import ensure_listlike, is_singleton
@@ -427,7 +426,7 @@ class Curve(SplineObject):
 
         # return new resampled curve
         return Curve(basis, controlpoints)
-    
+
     def _closest_point_linear_curve(self, pt: ArrayLike) -> tuple[FloatArray, float]:
         """Computes the closest point on a linear curve to a given point.
         :param array-like pt: point to which the closest point on the curve is sought
@@ -470,7 +469,6 @@ class Curve(SplineObject):
         t = t0
         iter = 0
         atol = state.controlpoint_absolute_tolerance
-        rtol = state.controlpoint_relative_tolerance
         F = np.dot(self(t) - pt, self.derivative(t))
         while np.abs(F) > atol:
             x = self(t)
@@ -534,7 +532,7 @@ class Curve(SplineObject):
             err_inf = max(np.max(np.sqrt(error)), err_inf)
         return (np.array(err2, dtype=np.float64), err_inf)
 
-    def antiderivative(self, constant: ArrayLike | None = None) -> Curve:
+    def get_antiderivative_curve(self, constant: ArrayLike | None = None) -> Curve:
         """Compute the antiderivative (integral) of the curve.
 
         The antiderivative is computed by inverting the derivative operator on
@@ -563,10 +561,10 @@ class Curve(SplineObject):
 
             # Create a linear curve (constant derivative)
             curve = sp.curve_factory.line([0, 0], [1, 1])
-            
+
             # Compute antiderivative
             integral = curve.antiderivative()
-            
+
             # The derivative of integral should equal the original curve
             t = np.linspace(0, 1, 11)
             diff = np.linalg.norm(integral.derivative(t) - curve(t))
@@ -593,13 +591,13 @@ class Curve(SplineObject):
         # where k_new is the new knot vector
         # Inverting:
         #   cp_new[i+1] - cp_new[i] = (k_new[i+p+1] - k_new[i+1]) / p * derivative_cp[i]
-        
+
         new_controlpoints = np.zeros((n + 1, self.dimension + self.rational), dtype=np.float64)
-        
+
         for i in range(n):
             # For the new knot vector with knot inserted at start and end
             # We map: old knot index j -> new knot index j+1
-            # So: k_new[i+p+1] corresponds to k_old[i+p] and 
+            # So: k_new[i+p+1] corresponds to k_old[i+p] and
             #     k_new[i+1] corresponds to k_old[i]
             delta_knot = old_knots[i + p] - old_knots[i]
             new_controlpoints[i + 1, :] = new_controlpoints[i, :] + (delta_knot / p) * self.controlpoints[i, :]

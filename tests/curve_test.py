@@ -645,78 +645,115 @@ class TestCurve(unittest.TestCase):
         self.assertTrue(np.allclose(k, b / (a**2 + b**2), atol=1e-3))  # helix have const. torsion
 
     def test_antiderivative(self):
-        """Test that antiderivative inverts the derivative operation."""
-        # Test 1: Linear curve (constant derivative)
+        """Test that antiderivative inverts the derivative operation using analytical polynomials."""
+
+        # Test 1: Linear curve: x(t) = t, y(t) = 2t on [0,1]
+        # Derivative: dx/dt = 1, dy/dt = 2
+        # Antiderivative: x(t) = t^2/2, y(t) = t^2 (with constant = 0 at t=0)
         basis = BSplineBasis(2, [0, 0, 1, 1])
-        controlpoints = [[0, 0], [1, 1]]
+        controlpoints = [[0, 0], [1, 2]]
         crv = Curve(basis, controlpoints)
 
-        # Integrate
-        integral = crv.antiderivative()
+        integral = crv.get_antiderivative_curve()
 
-        # Check: derivative of integral should recover the original
-        t = np.linspace(0, 1, 11)
-        original = crv(t)
-        recovered = integral.derivative(t)
-        self.assertAlmostEqual(float(np.linalg.norm(original - recovered)), 0.0)
+        # Check: integral at t=0 is zero (default constant)
+        integral_at_start = integral(integral.start(0))
+        self.assertAlmostEqual(np.linalg.norm(integral_at_start), 0.0, places=12)
 
         # Check: order increased by 1
         self.assertEqual(integral.order(0), crv.order(0) + 1)
 
-        # Check: integral is zero at start
-        start_val = integral(crv.start(0))
-        self.assertAlmostEqual(float(np.linalg.norm(start_val)), 0.0)
+        # Check against analytical solution: antiderivative is [t^2/2, t^2]
+        t = np.linspace(0, 1, 11)
+        analytical = np.array([t**2 / 2, t**2]).T
+        numerical = integral(t)
+        error = np.linalg.norm(numerical - analytical)
+        self.assertAlmostEqual(error, 0.0, places=10)
 
-        # Test 2: Quadratic curve
-        basis = BSplineBasis(3, [0, 0, 0, 1, 1, 1])
-        controlpoints = [[0, 0], [1, 1], [2, 0]]
+        # Test 2: Use an exact quadratic/linear analytical integral
+        # Exact antiderivative: x(t) = 3*t*t+2, y(t) = 4*t*(1-t) on [0,1]
+        # Build an exact spline for the antiderivative and use its derivative
+        # as the input curve. Then verify `crv.antiderivative()` recovers it.
+        basis_int = BSplineBasis(3, [0, 0, 0, 1, 1, 1])  # quadratic space
+        greville = basis_int.greville()
+        analytic_vals = np.array([[3 * t * t + 2, 4 * t * (1 - t)] for t in greville])
+        crv = cf.interpolate(analytic_vals, basis_int)
+
+        integral = crv.get_antiderivative_curve()
+
+        # Check: integral at start is zero (analytic integral is zero at t=0)
+        integral_at_start = integral(integral.start(0))
+        self.assertAlmostEqual(integral_at_start[0], 0.0)
+        self.assertAlmostEqual(integral_at_start[1], 0.0)
+
+        # Compare recovered integral to analytical values on a grid
+        t = np.linspace(0, 1, 21)
+        analytical = np.array([[tt ** 3 + 2 * tt, 2 * tt * (tt - 2/3 * tt * tt)] for tt in t])
+        numerical = integral(t)
+        error = np.linalg.norm(numerical - analytical)
+        self.assertAlmostEqual(error, 0.0, places=10)
+
+        # Test 3: Constant curve with custom integration constant
+        # x(t) = c1, y(t) = c2 (constant function)
+        # Antiderivative: x(t) = c1*t + K1, y(t) = c2*t + K2 where K = [K1, K2]
+        basis = BSplineBasis(2, [0, 0, 1, 1])
+        controlpoints = [[2, 3], [2, 3]]  # constant curve (both control points identical)
         crv = Curve(basis, controlpoints)
 
-        integral = crv.antiderivative()
-
-        t = np.linspace(0, 1, 21)
-        original = crv(t)
-        recovered = integral.derivative(t)
-        error = np.linalg.norm(original - recovered)
-        self.assertAlmostEqual(error, 0.0, places=12)
-
-        # Test 3: With custom integration constant
         constant = np.array([1.0, 2.0])
-        integral_with_const = crv.antiderivative(constant=constant)
+        integral_with_const = crv.get_antiderivative_curve(constant=constant)
 
-        # Check that the constant offset is applied
-        start_val = integral_with_const(crv.start(0))
+        # Check: integral at start equals the constant
+        integral_at_start = integral_with_const(integral_with_const.start(0))
         expected_start = constant
-        error = np.linalg.norm(start_val - expected_start)
+        error = np.linalg.norm(integral_at_start - expected_start)
         self.assertAlmostEqual(error, 0.0, places=12)
 
-        # Derivative should still match original curve
-        recovered_with_const = integral_with_const.derivative(t)
-        error = np.linalg.norm(original - recovered_with_const)
+        # Check against analytical solution: antiderivative is [2*t + 1, 3*t + 2]
+        t = np.linspace(0, 1, 11)
+        analytical = np.array([2 * t + 1, 3 * t + 2]).T
+        numerical = integral_with_const(t)
+        error = np.linalg.norm(numerical - analytical)
         self.assertAlmostEqual(error, 0.0, places=12)
 
-        # Test 4: Higher-order curve
+        # Test 4: Higher-order cubic curve on [0,1]
+        # Approximates a cubic polynomial: controlled by 4 control points
+        # For this test, verify the derivative of the antiderivative equals the original
         basis = BSplineBasis(4, [0, 0, 0, 0, 1, 1, 1, 1])
         controlpoints = [[0, 0], [1, 0.5], [1.5, 1], [1, 0]]
         crv = Curve(basis, controlpoints)
 
-        integral = crv.antiderivative()
+        integral = crv.get_antiderivative_curve()
+
+        # Check: order increased by 1
+        self.assertEqual(integral.order(0), 5)
+
+        # Check: derivative of integral equals original (no analytical form for general spline)
         t = np.linspace(0, 1, 31)
         original = crv(t)
         recovered = integral.derivative(t)
         error = np.linalg.norm(original - recovered)
         self.assertAlmostEqual(error, 0.0, places=10)
 
-        # Test 5: 3D curve
-        basis = BSplineBasis(3, [0, 0, 0, 1, 1, 1])
-        controlpoints = [[0, 0, 0], [1, 1, 0], [1, 1, 1]]
+        # Check: integral at start is zero
+        integral_at_start = integral(integral.start(0))
+        self.assertAlmostEqual(np.linalg.norm(integral_at_start), 0.0, places=12)
+
+        # Test 5: 3D linear curve
+        # x(t) = t, y(t) = t, z(t) = t (line in 3D)
+        # Derivative: dx/dt = 1, dy/dt = 1, dz/dt = 1
+        # Antiderivative: x(t) = t^2/2, y(t) = t^2/2, z(t) = t^2/2
+        basis = BSplineBasis(2, [0, 0, 1, 1])
+        controlpoints = [[0, 0, 0], [1, 1, 1]]
         crv = Curve(basis, controlpoints)
 
-        integral = crv.antiderivative()
+        integral = crv.get_antiderivative_curve()
+
+        # Check against analytical solution: antiderivative is [t^2/2, t^2/2, t^2/2]
         t = np.linspace(0, 1, 11)
-        original = crv(t)
-        recovered = integral.derivative(t)
-        error = np.linalg.norm(original - recovered)
+        analytical = np.array([t**2 / 2, t**2 / 2, t**2 / 2]).T
+        numerical = integral(t)
+        error = np.linalg.norm(numerical - analytical)
         self.assertAlmostEqual(error, 0.0, places=12)
 
         # Test 6: Rational splines should raise an error
@@ -725,7 +762,7 @@ class TestCurve(unittest.TestCase):
         rational_crv = Curve(basis, controlpoints, rational=True)
 
         with self.assertRaises(RuntimeError):
-            rational_crv.antiderivative()
+            rational_crv.get_antiderivative_curve()
 
 
 if __name__ == "__main__":
