@@ -15,8 +15,8 @@ def curve_length_parametrization(pts, normalize=False):
     :rtype: [float]
     """
     knots = [0.0]
-    for i in range(1, pts.shape[0]):
-        knots.append(knots[-1] + np.linalg.norm(pts[i, :] - pts[i - 1, :]))
+    for i in range(1, len(pts)):
+        knots.append(knots[-1] + np.linalg.norm(pts[i] - pts[i - 1]))
 
     if normalize:
         length = knots[-1]

@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import re
-from types import TracebackType
-from typing import Literal, Self, Sequence, TextIO, Any
 import warnings
 from itertools import chain, product
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, Literal, Self, TextIO
 
 import cv2
 import h5py
@@ -16,12 +15,17 @@ from tqdm import tqdm
 
 from splipy import curve_factory, surface_factory, volume_factory
 from splipy.basis import BSplineBasis
-from splipy.typing import FloatArray, IntArray
-from splipy.utils import ensure_listlike, ensure_listlike_old
+from splipy.utils import ensure_listlike
 from splipy.volume import Volume
 
 from .g2 import G2
 from .master import MasterIO
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from types import TracebackType
+
+    from splipy.typing import FloatArray, IntArray
 
 
 class Box[T]:
@@ -34,8 +38,8 @@ class Box[T]:
 class DiscontBoxMesh:
     # These are numpy arrays of objects.
     # We can't express that type. :-(
-    X: Any              # ndarray[list[point]]
-    plane_hull: Any     # ndarray[Delaunay]
+    X: Any  # ndarray[list[point]]
+    plane_hull: Any  # ndarray[Delaunay]
 
     Xz: FloatArray
 
@@ -325,11 +329,11 @@ class GRDECL(MasterIO):
         # special case number of evaluation points for full domain
         irange_c: list[int] = [
             irange[0] if irange[0] is not None else 0,
-            irange[1] if irange[1] is not None else vol.shape[0]
+            irange[1] if irange[1] is not None else vol.shape[0],
         ]
         jrange_c: list[int] = [
             jrange[0] if jrange[0] is not None else 0,
-            jrange[1] if jrange[1] is not None else vol.shape[1]
+            jrange[1] if jrange[1] is not None else vol.shape[1],
         ]
 
         nu = np.diff(irange_c)

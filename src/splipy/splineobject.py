@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import copy
 from bisect import bisect_left
-from collections.abc import Callable, Sequence, Sized
+from collections.abc import Callable, Iterator, Sequence, Sized
 from itertools import product
 from operator import attrgetter, methodcaller
 from typing import TYPE_CHECKING, ClassVar, Literal, Self, SupportsIndex, Unpack, cast, overload
@@ -1433,6 +1433,10 @@ class SplineObject:
             raise IndexError
 
         return unraveled
+
+    def __iter__(self) -> Iterator[FloatArray]:
+        for i in range(len(self)):
+            yield self[i]
 
     def __getitem__(self, i: SupportsIndex | slice | tuple[SupportsIndex | slice, ...]) -> FloatArray:
         """Get the control point at a given index.

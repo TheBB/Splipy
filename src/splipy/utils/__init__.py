@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, SupportsFloat, TypeVar, Unpack
 import numpy as np
 
 if TYPE_CHECKING:
+    from splipy.splineobject import SplineObject
     from splipy.typing import Direction, FloatArray, Section, SectionElement, SectionKwargs
 
 
@@ -201,7 +202,7 @@ def rotate_local_x_axis(xaxis=(1, 0, 0), normal=(0, 0, 1)):
     return atan2(xaxis[0, 1], xaxis[0, 0])
 
 
-def flip_and_move_plane_geometry(obj, center=(0, 0, 0), normal=(0, 0, 1)):
+def flip_and_move_plane_geometry[T: SplineObject](obj: T, center=(0, 0, 0), normal=(0, 0, 1)) -> T:
     """re-orients a planar geometry by moving it to a different location and
     tilting it"""
     # don't touch it if not needed. translate or scale operations may force

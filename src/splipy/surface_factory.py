@@ -5,6 +5,7 @@ from __future__ import annotations
 import inspect
 from math import atan2, pi, sqrt
 from pathlib import Path
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 
@@ -14,6 +15,9 @@ from .curve import Curve
 from .surface import Surface
 from .utils import flip_and_move_plane_geometry, rotate_local_x_axis
 from .utils.nutils import controlpoints, degree, multiplicities
+
+if TYPE_CHECKING:
+    from splipy.typing import ArrayLike, Scalar
 
 __all__ = [
     "square",
@@ -47,7 +51,13 @@ def square(size=1, lower_left=(0, 0)):
     return result
 
 
-def disc(r=1, center=(0, 0, 0), normal=(0, 0, 1), type="radial", xaxis=(1, 0, 0)):
+def disc(
+    r: Scalar = 1,
+    center: ArrayLike = (0, 0, 0),
+    normal: ArrayLike = (0, 0, 1),
+    type: Literal["radial", "square"] = "radial",
+    xaxis: ArrayLike = (1, 0, 0),
+) -> Surface:
     """Create a circular disc. The *type* parameter distinguishes between
     different parametrizations.
 

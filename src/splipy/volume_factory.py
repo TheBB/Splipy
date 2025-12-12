@@ -3,14 +3,23 @@
 from __future__ import annotations
 
 from math import atan2, pi, sqrt
+from typing import TYPE_CHECKING, Literal, cast, overload
 
 import numpy as np
+
+from splipy.utils.curve import curve_length_parametrization
 
 from . import curve_factory, surface_factory
 from .basis import BSplineBasis
 from .surface import Surface
 from .utils import flip_and_move_plane_geometry, rotate_local_x_axis
 from .volume import Volume
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from splipy.curve import Curve
+    from splipy.typing import ArrayLike, FloatArray, Scalar
 
 __all__ = [
     "cube",
@@ -25,7 +34,7 @@ __all__ = [
 ]
 
 
-def cube(size=1, lower_left=(0, 0, 0)):
+def cube(size: Scalar = 1, lower_left: ArrayLike = (0, 0, 0)) -> Volume:
     """Create a cube with parmetric origin at *(0,0,0)*.
 
     :param float size: Size(s), either a single scalar or a tuple of scalars per axis
@@ -39,7 +48,9 @@ def cube(size=1, lower_left=(0, 0, 0)):
     return result
 
 
-def sphere(r=1, center=(0, 0, 0), type="radial"):
+def sphere(
+    r: Scalar = 1, center: ArrayLike = (0, 0, 0), type: Literal["radial", "square"] = "radial"
+) -> Volume:
     """Create a solid sphere
 
     :param float r: Radius
@@ -59,7 +70,7 @@ def sphere(r=1, center=(0, 0, 0), type="radial"):
         sr2 = sqrt(2)
         sr3 = sqrt(3)
         sr6 = sqrt(6)
-        cp = [
+        surf_cp = [
             [-4 * (sr3 - 1), 4 * (1 - sr3), 4 * (1 - sr3), 4 * (3 - sr3)],  # row 0
             [-sr2, sr2 * (sr3 - 4), sr2 * (sr3 - 4), sr2 * (3 * sr3 - 2)],
             [0, 4.0 / 3 * (1 - 2 * sr3), 4.0 / 3 * (1 - 2 * sr3), 4.0 / 3 * (5 - sr3)],
@@ -86,7 +97,7 @@ def sphere(r=1, center=(0, 0, 0), type="radial"):
             [sr2, -sr2 * (sr3 - 4), sr2 * (sr3 - 4), sr2 * (3 * sr3 - 2)],
             [4 * (sr3 - 1), -4 * (1 - sr3), 4 * (1 - sr3), 4 * (3 - sr3)],
         ]
-        wmin = Surface(b, b, cp, rational=True)
+        wmin = Surface(b, b, surf_cp, rational=True)
         wmax = wmin.clone().mirror([0, 0, 1])
         vmax = wmin.clone().rotate(pi / 2, [1, 0, 0])
         vmin = vmax.clone().mirror([0, 1, 0])
@@ -95,25 +106,25 @@ def sphere(r=1, center=(0, 0, 0), type="radial"):
         # ideally I would like to call edge_surfaces() now, but that function
         # does not work with rational surfaces, so we'll just manually try
         # and add some inner controlpoints
-        cp = np.zeros((5, 5, 5, 4))
-        cp[:, :, 0, :] = wmin[:, :, :]
-        cp[:, :, -1, :] = wmax[:, :, :]
-        cp[:, 0, :, :] = vmin[:, :, :]
-        cp[:, -1, :, :] = vmax[:, :, :]
-        cp[0, :, :, :] = umin[:, :, :]
-        cp[-1, :, :, :] = umax[:, :, :]
+        vol_cp = np.zeros((5, 5, 5, 4))
+        vol_cp[:, :, 0, :] = wmin[:, :, :]
+        vol_cp[:, :, -1, :] = wmax[:, :, :]
+        vol_cp[:, 0, :, :] = vmin[:, :, :]
+        vol_cp[:, -1, :, :] = vmax[:, :, :]
+        vol_cp[0, :, :, :] = umin[:, :, :]
+        vol_cp[-1, :, :, :] = umax[:, :, :]
         inner = np.linspace(-0.5, 0.5, 3)
         Y, X, Z = np.meshgrid(inner, inner, inner)
-        cp[1:4, 1:4, 1:4, 0] = X
-        cp[1:4, 1:4, 1:4, 1] = Y
-        cp[1:4, 1:4, 1:4, 2] = Z
-        cp[1:4, 1:4, 1:4, 3] = 1
-        ball = Volume(b, b, b, cp, rational=True, raw=True)
+        vol_cp[1:4, 1:4, 1:4, 0] = X
+        vol_cp[1:4, 1:4, 1:4, 1] = Y
+        vol_cp[1:4, 1:4, 1:4, 2] = Z
+        vol_cp[1:4, 1:4, 1:4, 3] = 1
+        ball = Volume(b, b, b, vol_cp, rational=True, raw=True)
         return r * ball + center
     raise ValueError("invalid type argument")
 
 
-def revolve(surf, theta=2 * pi, axis=(0, 0, 1)):
+def revolve(surf: Surface, theta: Scalar = 2 * pi, axis: ArrayLike = (0, 0, 1)) -> Volume:
     """Revolve a volume by sweeping a surface in a rotational fashion around
     an axis.
 
@@ -127,9 +138,11 @@ def revolve(surf, theta=2 * pi, axis=(0, 0, 1)):
     surf.set_dimension(3)  # add z-components (if not already present)
     surf.force_rational()  # add weight (if not already present)
 
+    axis_np = np.asarray(axis, dtype=float)
+
     # align axis with the z-axis
-    normal_theta = atan2(axis[1], axis[0])
-    normal_phi = atan2(sqrt(axis[0] ** 2 + axis[1] ** 2), axis[2])
+    normal_theta = atan2(axis_np[1], axis_np[0])
+    normal_phi = atan2(sqrt(axis_np[0] ** 2 + axis_np[1] ** 2), axis_np[2])
     surf.rotate(-normal_theta, [0, 0, 1])
     surf.rotate(-normal_phi, [0, 1, 0])
 
@@ -139,7 +152,7 @@ def revolve(surf, theta=2 * pi, axis=(0, 0, 1)):
 
     cp = np.zeros((m * n, 4))
 
-    dt = np.sign(theta) * (path.knots(0)[1] - path.knots(0)[0]) / 2.0
+    dt = np.sign(float(theta)) * (path.knots(0)[1] - path.knots(0)[0]) / 2.0
     for i in range(m):
         weight = path[i, -1]
         cp[i * n : (i + 1) * n, :] = np.reshape(surf.controlpoints.transpose(1, 0, 2), (n, 4))
@@ -153,7 +166,14 @@ def revolve(surf, theta=2 * pi, axis=(0, 0, 1)):
     return result
 
 
-def torus(minor_r=1, major_r=3, center=(0, 0, 0), normal=(0, 0, 1), xaxis=(1, 0, 0), type="radial"):
+def torus(
+    minor_r: Scalar = 1,
+    major_r: Scalar = 3,
+    center: ArrayLike = (0, 0, 0),
+    normal: ArrayLike = (0, 0, 1),
+    xaxis: ArrayLike = (1, 0, 0),
+    type: Literal["radial", "square"] = "radial",
+) -> Volume:
     """Create a torus (doughnut) by revolving a circle of size *minor_r*
     around the *z* axis with radius *major_r*.
 
@@ -169,14 +189,21 @@ def torus(minor_r=1, major_r=3, center=(0, 0, 0), normal=(0, 0, 1), xaxis=(1, 0,
 
     disc = surface_factory.disc(minor_r, type=type)
     disc.rotate(pi / 2, (1, 0, 0))  # flip up into xz-plane
-    disc.translate((major_r, 0, 0))  # move into position to spin around z-axis
+    disc.translate((float(major_r), 0, 0))  # move into position to spin around z-axis
     result = revolve(disc)
 
     result.rotate(rotate_local_x_axis(xaxis, normal))
     return flip_and_move_plane_geometry(result, center, normal)
 
 
-def cylinder(r=1, h=1, center=(0, 0, 0), axis=(0, 0, 1), xaxis=(1, 0, 0), type="radial"):
+def cylinder(
+    r: Scalar = 1,
+    h: Scalar = 1,
+    center: ArrayLike = (0, 0, 0),
+    axis: ArrayLike = (0, 0, 1),
+    xaxis: ArrayLike = (1, 0, 0),
+    type: Literal["radial", "square"] = "radial",
+) -> Volume:
     """Create a solid cylinder
 
     :param float r: Radius
@@ -191,7 +218,7 @@ def cylinder(r=1, h=1, center=(0, 0, 0), axis=(0, 0, 1), xaxis=(1, 0, 0), type="
     return extrude(surface_factory.disc(r, center, axis, xaxis=xaxis, type=type), h * np.array(axis))
 
 
-def extrude(surf, amount):
+def extrude(surf: Surface, amount: ArrayLike) -> Volume:
     """Extrude a surface by sweeping it to a given height.
 
     :param Surface surf: Surface to extrude
@@ -210,7 +237,15 @@ def extrude(surf, amount):
     return Volume(surf.bases[0], surf.bases[1], BSplineBasis(2), cp, surf.rational)
 
 
-def edge_surfaces(*surfaces):
+@overload
+def edge_surfaces(surfaces: Sequence[Surface], /) -> Volume: ...
+
+
+@overload
+def edge_surfaces(*surfaces: Surface) -> Volume: ...
+
+
+def edge_surfaces(*srfs: Surface | Sequence[Surface]) -> Volume:
     """Create the volume defined by the region between the input surfaces.
 
     In case of six input surfaces, these must be given in the order: bottom,
@@ -222,8 +257,11 @@ def edge_surfaces(*surfaces):
     :rtype: Volume
     :raises ValueError: If the length of *surfaces* is not two or six
     """
-    if len(surfaces) == 1:  # probably gives input as a list-like single variable
-        surfaces = surfaces[0]
+    surfaces: Sequence[Surface]
+
+    # If there's only one argument, assume it's a list of surfaces
+    surfaces = cast("Sequence[Surface]", srfs[0]) if len(srfs) == 1 else cast("Sequence[Surface]", srfs)
+
     if len(surfaces) == 2:
         surf1 = surfaces[0].clone()
         surf2 = surfaces[1].clone()
@@ -328,7 +366,7 @@ def edge_surfaces(*surfaces):
     raise ValueError("Requires two or six input surfaces")
 
 
-def sweep(path, shape):
+def sweep(path: Curve, shape: Surface) -> Volume:
     """Generate a surface by sweeping a shape along a path
 
     The resulting surface is an approximation generated by interpolating at the
@@ -369,7 +407,15 @@ def sweep(path, shape):
     return interpolate(X, [b1, b2, b3])
 
 
-def loft(*surfaces):
+@overload
+def loft(surfaces: Sequence[Surface], /) -> Volume: ...
+
+
+@overload
+def loft(*surfaces: Surface) -> Volume: ...
+
+
+def loft(*srfs: Surface | Sequence[Surface]) -> Volume:
     """Generate a volume by lofting a series of surfaces
 
     The resulting volume is interpolated at all input surfaces and a smooth transition
@@ -402,25 +448,23 @@ def loft(*surfaces):
         vol = volume_factory.loft(all_my_surfaces)
 
     """
-    if len(surfaces) == 1:
-        surfaces = surfaces[0]
+    surfaces: Sequence[Surface]
+
+    # If there's only one argument, assume it's a list of surfaces
+    surfaces = cast("Sequence[Surface]", srfs[0]) if len(srfs) == 1 else cast("Sequence[Surface]", srfs)
 
     # clone input, so we don't change those references
     # make sure everything has the same dimension since we need to compute length
     surfaces = [s.clone().set_dimension(3) for s in surfaces]
     if len(surfaces) == 2:
-        return surface_factory.edge_curves(surfaces)
+        return edge_surfaces(surfaces)
     if len(surfaces) == 3:
         # can't do cubic spline interpolation, so we'll do quadratic
         basis3 = BSplineBasis(3)
         dist = basis3.greville()
     else:
-        x = [s.center() for s in surfaces]
-
         # create knot vector from the euclidian length between the surfaces
-        dist = [0]
-        for x1, x0 in zip(x[1:], x[:-1]):
-            dist.append(dist[-1] + np.linalg.norm(x1 - x0))
+        dist = curve_length_parametrization([s.center() for s in surfaces])
 
         # using "free" boundary condition by setting N'''(u) continuous at second to last and second knot
         knot = [dist[0]] * 4 + dist[2:-2] + [dist[-1]] * 4
@@ -465,7 +509,9 @@ def loft(*surfaces):
     return Volume(basis1, basis2, basis3, cp, surfaces[0].rational)
 
 
-def interpolate(x, bases, u=None) -> Volume:
+def interpolate(
+    x: FloatArray, bases: Sequence[BSplineBasis], u: Sequence[FloatArray] | None = None
+) -> Volume:
     """Interpolate a volume on a set of regular gridded interpolation points `x`.
 
     The points can be either a matrix (in which case the first index is
@@ -494,7 +540,7 @@ def interpolate(x, bases, u=None) -> Volume:
     return Volume(bases[0], bases[1], bases[2], cp.transpose(2, 1, 0, 3).reshape((np.prod(vol_shape), dim)))
 
 
-def least_square_fit(x, bases, u):
+def least_square_fit(x: FloatArray, bases: Sequence[BSplineBasis], u: Sequence[FloatArray]) -> Volume:
     """Perform a least-square fit of a point cloud `x` onto a spline basis.
 
     The points can be either a matrix (in which case the first index is
