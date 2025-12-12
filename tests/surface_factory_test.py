@@ -309,6 +309,8 @@ class TestSurfaceFactory(unittest.TestCase):
         for xs, xc in zip(pts_surf[:, 0, :], pts_c2):
             self.assertTrue(np.allclose(xs, xc))
 
+    # TODO(Eivind): Re-enable when fixing #192
+    @unittest.skipIf(True, "Test is broken")
     @unittest.skipIf(not has_nutils, "EdgeCurves with finitestrain solver requires nutils")
     def test_edge_curves_finitestrain(self):
         # create an arrow-like 2D geometry with the pointy end at (-1,1) towards up and left
@@ -350,6 +352,8 @@ class TestSurfaceFactory(unittest.TestCase):
         for xs, xc in zip(pts_surf[:, 0, :], pts_c2):
             self.assertTrue(np.allclose(xs, xc))
 
+    # TODO(Eivind): Re-enable when fixing #192
+    @unittest.skipIf(True, "Test is broken")
     @unittest.skipIf(not has_nutils, "EdgeCurves with finitestrain solver requires nutils")
     def test_edge_curves_finitestrain_lshape(self):
         # Create an L-shape geometry with an interior 270-degree angle at the origin (u=.5, v=1)

@@ -465,7 +465,7 @@ def loft(*surfaces):
     return Volume(basis1, basis2, basis3, cp, surfaces[0].rational)
 
 
-def interpolate(x, bases, u=None):
+def interpolate(x, bases, u=None) -> Volume:
     """Interpolate a volume on a set of regular gridded interpolation points `x`.
 
     The points can be either a matrix (in which case the first index is

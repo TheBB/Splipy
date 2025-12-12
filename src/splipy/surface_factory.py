@@ -320,11 +320,6 @@ def coons_patch(bottom, right, top, left):
 
 
 def poisson_patch(bottom, right, top, left):
-    from nutils import version
-
-    if int(version[0]) != 4:
-        raise ImportError("Mismatching nutils version detected, only version 4 supported.")
-
     from nutils import function as fn
     from nutils import mesh
 
@@ -382,11 +377,6 @@ def poisson_patch(bottom, right, top, left):
 
 
 def elasticity_patch(bottom, right, top, left):
-    from nutils import version
-
-    if int(version[0]) != 4:
-        raise ImportError("Mismatching nutils version detected, only version 4 supported.")
-
     from nutils import function, mesh
 
     # error test input
@@ -452,11 +442,6 @@ def elasticity_patch(bottom, right, top, left):
 
 
 def finitestrain_patch(bottom, right, top, left):
-    from nutils import version
-
-    if int(version[0]) != 4:
-        raise ImportError("Mismatching nutils version detected, only version 4 supported.")
-
     from nutils import function, mesh, solver
 
     # error test input
@@ -480,9 +465,9 @@ def finitestrain_patch(bottom, right, top, left):
     linear = BSplineBasis(2)
     srf = Surface(linear, linear, [bottom[0], bottom[-1], top[0], top[-1]])
     srf.raise_order(p1 - 2, p2 - 2)
-    for k in bottom.knots(0, True)[p1:-p1]:
+    for k in bottom.knots(0, with_multiplicities=True)[p1:-p1]:
         srf.insert_knot(k, 0)
-    for k in left.knots(0, True)[p2:-p2]:
+    for k in left.knots(0, with_multiplicities=True)[p2:-p2]:
         srf.insert_knot(k, 1)
 
     # create computational mesh
