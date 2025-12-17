@@ -96,7 +96,7 @@ def disc(
     raise ValueError("invalid type argument")
 
 
-def sphere(r=1, center=(0, 0, 0), zaxis=(0, 0, 1), xaxis=(1, 0, 0)):
+def sphere(r=1, center=(0, 0, 0), zaxis=(0, 0, 1), xaxis=(1, 0, 0)) -> Surface:
     """Create a spherical shell.
 
     :param float r: Radius
@@ -115,7 +115,7 @@ def sphere(r=1, center=(0, 0, 0), zaxis=(0, 0, 1), xaxis=(1, 0, 0)):
     return flip_and_move_plane_geometry(result, center, zaxis)
 
 
-def extrude(curve, amount):
+def extrude(curve, amount) -> Surface:
     """Extrude a curve by sweeping it to a given height.
 
     :param Curve curve: Curve to extrude
@@ -134,7 +134,7 @@ def extrude(curve, amount):
     return Surface(curve.bases[0], BSplineBasis(2), cp, curve.rational)
 
 
-def revolve(curve, theta=2 * pi, axis=(0, 0, 1)):
+def revolve(curve, theta=2 * pi, axis=(0, 0, 1)) -> Surface:
     """Revolve a surface by sweeping a curve in a rotational fashion around
     the *z* axis.
 
@@ -179,7 +179,7 @@ def revolve(curve, theta=2 * pi, axis=(0, 0, 1)):
     return result
 
 
-def cylinder(r=1, h=1, center=(0, 0, 0), axis=(0, 0, 1), xaxis=(1, 0, 0)):
+def cylinder(r=1, h=1, center=(0, 0, 0), axis=(0, 0, 1), xaxis=(1, 0, 0)) -> Surface:
     """Create a cylinder shell with no top or bottom
 
     :param float r: Radius
@@ -193,7 +193,7 @@ def cylinder(r=1, h=1, center=(0, 0, 0), axis=(0, 0, 1), xaxis=(1, 0, 0)):
     return extrude(curve_factory.circle(r, center, axis, xaxis=xaxis), h * np.array(axis))
 
 
-def torus(minor_r=1, major_r=3, center=(0, 0, 0), normal=(0, 0, 1), xaxis=(1, 0, 0)):
+def torus(minor_r=1, major_r=3, center=(0, 0, 0), normal=(0, 0, 1), xaxis=(1, 0, 0)) -> Surface:
     """Create a torus (doughnut) by revolving a circle of size *minor_r*
     around the *z* axis with radius *major_r*.
 
@@ -289,7 +289,7 @@ def edge_curves(*curves, **kwargs) -> Surface:
     raise ValueError("Requires two or four input curves")
 
 
-def coons_patch(bottom, right, top, left):
+def coons_patch(bottom, right, top, left) -> Surface:
     """Create the surface defined by the region between the 4 input curves.
 
     The input curves need to be parametrized to form a directed loop around the resulting Surface.
@@ -329,7 +329,7 @@ def coons_patch(bottom, right, top, left):
     return result
 
 
-def poisson_patch(bottom, right, top, left):
+def poisson_patch(bottom, right, top, left) -> Surface:
     from nutils import function as fn
     from nutils import mesh
 
@@ -386,7 +386,7 @@ def poisson_patch(bottom, right, top, left):
     return Surface(bottom.bases[0], left.bases[0], controlpoints, bottom.rational, raw=True)
 
 
-def elasticity_patch(bottom, right, top, left):
+def elasticity_patch(bottom, right, top, left) -> Surface:
     from nutils import function, mesh
 
     # error test input
@@ -451,7 +451,7 @@ def elasticity_patch(bottom, right, top, left):
     return Surface(bottom.bases[0], left.bases[0], controlpoints, bottom.rational, raw=True)
 
 
-def finitestrain_patch(bottom, right, top, left):
+def finitestrain_patch(bottom, right, top, left) -> Surface:
     from nutils import function, mesh, solver
 
     # error test input

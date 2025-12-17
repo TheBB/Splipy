@@ -66,12 +66,12 @@ class SplineObject:
 
     @staticmethod
     def construct_subclass(
-        bases: Sequence[BSplineBasis], controlpoints: FloatArray, rational: bool
+        bases: Sequence[BSplineBasis], controlpoints: ArrayLike, rational: bool, raw: bool = True,
     ) -> SplineObject:
         for subcls in SplineObject.__subclasses__():
             if subcls._intended_pardim == len(bases):
-                return subcls(*bases, controlpoints, rational=rational, raw=True)  # type: ignore
-        return SplineObject(bases, controlpoints, rational, raw=True)
+                return subcls(*bases, controlpoints, rational=rational, raw=raw)  # type: ignore
+        return SplineObject(bases, controlpoints, rational, raw=raw)
 
     @classmethod
     def construct_self(cls, bases: Sequence[BSplineBasis], controlpoints: FloatArray, rational: bool) -> Self:

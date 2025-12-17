@@ -57,7 +57,7 @@ class Boundary:
     """Use `TANGENT` for the start and `NATURAL` for the end."""
 
 
-def line(a, b, relative=False):
+def line(a, b, relative=False) -> Curve:
     """Create a line between two points.
 
     :param array-like a: Start point
@@ -137,7 +137,7 @@ def n_gon(n=5, r=1, center=(0, 0, 0), normal=(0, 0, 1)):
     return flip_and_move_plane_geometry(result, center, normal)
 
 
-def circle(r=1, center=(0, 0, 0), normal=(0, 0, 1), type="p2C0", xaxis=(1, 0, 0)):
+def circle(r: Scalar = 1, center=(0, 0, 0), normal=(0, 0, 1), type="p2C0", xaxis=(1, 0, 0)) -> Curve:
     """Create a circle.
 
     :param float r: Radius
@@ -195,7 +195,7 @@ def circle(r=1, center=(0, 0, 0), normal=(0, 0, 1), type="p2C0", xaxis=(1, 0, 0)
     return flip_and_move_plane_geometry(result, center, normal)
 
 
-def ellipse(r1=1, r2=1, center=(0, 0, 0), normal=(0, 0, 1), type="p2C0", xaxis=(1, 0, 0)):
+def ellipse(r1=1, r2=1, center=(0, 0, 0), normal=(0, 0, 1), type="p2C0", xaxis=(1, 0, 0)) -> Curve:
     """Create an ellipse
 
     :param float r1: Radius along xaxis
