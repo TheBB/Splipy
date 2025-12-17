@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import inspect
+from collections.abc import Sequence
 from math import atan2, pi, sqrt
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Callable, Literal, overload, cast
 
 import numpy as np
+
+from splipy.typing import FloatArray
+from splipy.utils.curve import curve_length_parametrization
 
 from . import curve_factory, state
 from .basis import BSplineBasis
@@ -37,7 +41,7 @@ __all__ = [
 ]
 
 
-def square(size=1, lower_left=(0, 0)):
+def square(size: Scalar = 1, lower_left: ArrayLike = (0, 0)) -> Surface:
     """Create a square with parametric origin at *(0,0)*.
 
     :param float size: Size(s), either a single scalar or a tuple of scalars per axis
@@ -69,6 +73,7 @@ def disc(
     :return: The disc
     :rtype: Surface
     """
+    r = float(r)
     if type == "radial":
         c1 = curve_factory.circle(r, center=center, normal=normal, xaxis=xaxis)
         c2 = flip_and_move_plane_geometry(c1 * 0, center, normal)
@@ -78,7 +83,7 @@ def disc(
         return result
     if type == "square":
         w = 1 / sqrt(2)
-        cp = [
+        cp: list[list[float]] = [
             [-r * w, -r * w, 1],
             [0, -r, w],
             [r * w, -r * w, 1],
@@ -96,7 +101,12 @@ def disc(
     raise ValueError("invalid type argument")
 
 
-def sphere(r=1, center=(0, 0, 0), zaxis=(0, 0, 1), xaxis=(1, 0, 0)) -> Surface:
+def sphere(
+    r: Scalar = 1,
+    center: ArrayLike = (0, 0, 0),
+    zaxis: ArrayLike = (0, 0, 1),
+    xaxis: ArrayLike = (1, 0, 0),
+) -> Surface:
     """Create a spherical shell.
 
     :param float r: Radius
@@ -115,7 +125,7 @@ def sphere(r=1, center=(0, 0, 0), zaxis=(0, 0, 1), xaxis=(1, 0, 0)) -> Surface:
     return flip_and_move_plane_geometry(result, center, zaxis)
 
 
-def extrude(curve, amount) -> Surface:
+def extrude(curve: Curve, amount: ArrayLike) -> Surface:
     """Extrude a curve by sweeping it to a given height.
 
     :param Curve curve: Curve to extrude
@@ -134,7 +144,7 @@ def extrude(curve, amount) -> Surface:
     return Surface(curve.bases[0], BSplineBasis(2), cp, curve.rational)
 
 
-def revolve(curve, theta=2 * pi, axis=(0, 0, 1)) -> Surface:
+def revolve(curve: Curve, theta: Scalar = 2 * pi, axis: ArrayLike = (0, 0, 1)) -> Surface:
     """Revolve a surface by sweeping a curve in a rotational fashion around
     the *z* axis.
 
@@ -147,6 +157,8 @@ def revolve(curve, theta=2 * pi, axis=(0, 0, 1)) -> Surface:
     curve = curve.clone()  # clone input curve, throw away input reference
     curve.set_dimension(3)  # add z-components (if not already present)
     curve.force_rational()  # add weight (if not already present)
+
+    axis = np.asarray(axis)
 
     # align axis with the z-axis
     normal_theta = atan2(axis[1], axis[0])
@@ -162,8 +174,8 @@ def revolve(curve, theta=2 * pi, axis=(0, 0, 1)) -> Surface:
 
     # loop around the circle and set control points by the traditional 9-point
     # circle curve with weights 1/sqrt(2), only here C0-periodic, so 8 points
-    dt = 0
-    t = 0
+    dt: float = 0
+    t: float = 0
     for i in range(m):
         x, y, w = circle_seg[i]
         dt = atan2(y, x) - t
@@ -179,7 +191,13 @@ def revolve(curve, theta=2 * pi, axis=(0, 0, 1)) -> Surface:
     return result
 
 
-def cylinder(r=1, h=1, center=(0, 0, 0), axis=(0, 0, 1), xaxis=(1, 0, 0)) -> Surface:
+def cylinder(
+    r: Scalar = 1,
+    h: Scalar = 1,
+    center: ArrayLike = (0, 0, 0),
+    axis: ArrayLike = (0, 0, 1),
+    xaxis: ArrayLike = (1, 0, 0),
+) -> Surface:
     """Create a cylinder shell with no top or bottom
 
     :param float r: Radius
@@ -193,7 +211,13 @@ def cylinder(r=1, h=1, center=(0, 0, 0), axis=(0, 0, 1), xaxis=(1, 0, 0)) -> Sur
     return extrude(curve_factory.circle(r, center, axis, xaxis=xaxis), h * np.array(axis))
 
 
-def torus(minor_r=1, major_r=3, center=(0, 0, 0), normal=(0, 0, 1), xaxis=(1, 0, 0)) -> Surface:
+def torus(
+    minor_r: Scalar = 1,
+    major_r: Scalar = 3,
+    center: ArrayLike = (0, 0, 0),
+    normal: ArrayLike = (0, 0, 1),
+    xaxis: ArrayLike = (1, 0, 0),
+) -> Surface:
     """Create a torus (doughnut) by revolving a circle of size *minor_r*
     around the *z* axis with radius *major_r*.
 
@@ -207,14 +231,33 @@ def torus(minor_r=1, major_r=3, center=(0, 0, 0), normal=(0, 0, 1), xaxis=(1, 0,
     """
     circle = curve_factory.circle(minor_r)
     circle.rotate(pi / 2, (1, 0, 0))  # flip up into xz-plane
-    circle.translate((major_r, 0, 0))  # move into position to spin around z-axis
+    circle.translate((float(major_r), 0, 0))  # move into position to spin around z-axis
     result = revolve(circle)
 
     result.rotate(rotate_local_x_axis(xaxis, normal))
     return flip_and_move_plane_geometry(result, center, normal)
 
 
-def edge_curves(*curves, **kwargs) -> Surface:
+@overload
+def edge_curves(
+    curves: Sequence[Curve],
+    /,
+    *,
+    type: Literal["coons", "poisson", "elasticity", "finitestrain"] = ...,
+) -> Surface: ...
+
+
+@overload
+def edge_curves(
+    *curves: Curve,
+    type: Literal["coons", "poisson", "elasticity", "finitestrain"] = ...,
+) -> Surface: ...
+
+
+def edge_curves(
+    *in_curves: Curve | Sequence[Curve],
+    type: Literal["coons", "poisson", "elasticity", "finitestrain"] = "coons",
+) -> Surface:
     """Create the surface defined by the region between the input curves.
 
     In case of four input curves, these must be given in an ordered directional
@@ -227,9 +270,11 @@ def edge_curves(*curves, **kwargs) -> Surface:
     :rtype: Surface
     :raises ValueError: If the length of *curves* is not two or four
     """
-    type = kwargs.get("type", "coons")
-    if len(curves) == 1:  # probably gives input as a list-like single variable
-        curves = curves[0]
+
+    curves = cast("Sequence[Curve]", in_curves) if isinstance(in_curves[0], Curve) else in_curves[0]
+
+    # if len(curves) == 1:  # probably gives input as a list-like single variable
+    #     curves = curves[0]
     if len(curves) == 2:
         crv1 = curves[0].clone()
         crv2 = curves[1].clone()
@@ -289,7 +334,7 @@ def edge_curves(*curves, **kwargs) -> Surface:
     raise ValueError("Requires two or four input curves")
 
 
-def coons_patch(bottom, right, top, left) -> Surface:
+def coons_patch(bottom: Curve, right: Curve, top: Curve, left: Curve) -> Surface:
     """Create the surface defined by the region between the 4 input curves.
 
     The input curves need to be parametrized to form a directed loop around the resulting Surface.
@@ -329,8 +374,8 @@ def coons_patch(bottom, right, top, left) -> Surface:
     return result
 
 
-def poisson_patch(bottom, right, top, left) -> Surface:
-    from nutils import function as fn
+def poisson_patch(bottom: Curve, right: Curve, top: Curve, left: Curve) -> Surface:
+    from nutils import function as fn  # type: ignore[import-untyped]
     from nutils import mesh
 
     # error test input
@@ -386,7 +431,7 @@ def poisson_patch(bottom, right, top, left) -> Surface:
     return Surface(bottom.bases[0], left.bases[0], controlpoints, bottom.rational, raw=True)
 
 
-def elasticity_patch(bottom, right, top, left) -> Surface:
+def elasticity_patch(bottom: Curve, right: Curve, top: Curve, left: Curve) -> Surface:
     from nutils import function, mesh
 
     # error test input
@@ -451,7 +496,7 @@ def elasticity_patch(bottom, right, top, left) -> Surface:
     return Surface(bottom.bases[0], left.bases[0], controlpoints, bottom.rational, raw=True)
 
 
-def finitestrain_patch(bottom, right, top, left) -> Surface:
+def finitestrain_patch(bottom: Curve, right: Curve, top: Curve, left: Curve) -> Surface:
     from nutils import function, mesh, solver
 
     # error test input
@@ -546,7 +591,7 @@ def finitestrain_patch(bottom, right, top, left) -> Surface:
     return srf
 
 
-def thicken(curve, amount) -> Surface:
+def thicken(curve: Curve, amount: Scalar | Callable[..., float]) -> Surface:
     """Generate a surface by adding thickness to a curve.
 
     - For 2D curves this will generate a 2D planar surface with the curve
@@ -602,7 +647,7 @@ def thicken(curve, amount) -> Surface:
         if inspect.isfunction(amount):
             arg_names = inspect.signature(amount).parameters
             argc = len(arg_names)
-            argv = [0] * argc
+            argv: list[float] = [0] * argc
             for i in range(n):
                 # build up the list of arguments (in case not all of (x,y,t) are specified)
                 for j, name in enumerate(arg_names):
@@ -623,10 +668,11 @@ def thicken(curve, amount) -> Surface:
                 left_points[i, 0] = x[i, 0] + v[i, 1] * dist  # x at top
                 left_points[i, 1] = x[i, 1] - v[i, 0] * dist  # y at top
         else:
-            right_points[:, 0] = x[:, 0] - v[:, 1] * amount  # x at bottom
-            right_points[:, 1] = x[:, 1] + v[:, 0] * amount  # y at bottom
-            left_points[:, 0] = x[:, 0] + v[:, 1] * amount  # x at top
-            left_points[:, 1] = x[:, 1] - v[:, 0] * amount  # y at top
+            a = float(cast("Scalar", amount))
+            right_points[:, 0] = x[:, 0] - v[:, 1] * a  # x at bottom
+            right_points[:, 1] = x[:, 1] + v[:, 0] * a  # y at bottom
+            left_points[:, 0] = x[:, 0] + v[:, 1] * a  # x at top
+            left_points[:, 1] = x[:, 1] - v[:, 0] * a  # y at top
         # perform interpolation on each side
         right = curve_factory.interpolate(right_points, curve.bases[0])
         left = curve_factory.interpolate(left_points, curve.bases[0])
@@ -636,7 +682,7 @@ def thicken(curve, amount) -> Surface:
     return sweep(curve, curve_factory.circle(r=amount))
 
 
-def sweep(path, shape):
+def sweep(path: Curve, shape: Curve) -> Surface:
     """Generate a surface by sweeping a shape along a path
 
     The resulting surface is an approximation generated by interpolating at the
@@ -670,7 +716,15 @@ def sweep(path, shape):
     return interpolate(X, [b1, b2])
 
 
-def loft(*curves):
+@overload
+def loft(*curves: Curve) -> Surface: ...
+
+
+@overload
+def loft(curves: Sequence[Curve], /) -> Surface: ...
+
+
+def loft(*in_curves: Curve | Sequence[Curve]) -> Surface:
     """Generate a surface by lofting a series of curves
 
     The resulting surface is interpolated at all input curves and a smooth transition
@@ -703,8 +757,7 @@ def loft(*curves):
         srf = surface_factory.loft(all_my_curves)
 
     """
-    if len(curves) == 1:
-        curves = curves[0]
+    curves = cast("Sequence[Curve]", in_curves) if isinstance(in_curves[0], Curve) else in_curves[0]
 
     # clone input, so we don't change those references
     # make sure everything has the same dimension since we need to compute length
@@ -716,12 +769,8 @@ def loft(*curves):
         basis2 = BSplineBasis(3)
         dist = basis2.greville()
     else:
-        x = [c.center() for c in curves]
-
         # create knot vector from the euclidian length between the curves
-        dist = [0]
-        for x1, x0 in zip(x[1:], x[:-1]):
-            dist.append(dist[-1] + np.linalg.norm(x1 - x0))
+        dist = curve_length_parametrization([c.center() for c in curves])
 
         # using "free" boundary condition by setting N'''(u) continuous at second to last and second knot
         knot = [dist[0]] * 4 + dist[2:-2] + [dist[-1]] * 4
@@ -759,7 +808,11 @@ def loft(*curves):
     return Surface(basis1, basis2, cp, curves[0].rational)
 
 
-def interpolate(x, bases, u=None):
+def interpolate(
+    x: FloatArray,
+    bases: Sequence[BSplineBasis],
+    u: Sequence[ArrayLike] | None = None,
+) -> Surface:
     """Interpolate a surface on a set of regular gridded interpolation points `x`.
 
     The points can be either a matrix (in which case the first index is
@@ -788,7 +841,7 @@ def interpolate(x, bases, u=None):
     return Surface(bases[0], bases[1], cp.transpose(1, 0, 2).reshape((np.prod(surf_shape), dim)))
 
 
-def least_square_fit(x, bases, u) -> Surface:
+def least_square_fit(x: FloatArray, bases: Sequence[BSplineBasis], u: Sequence[ArrayLike]) -> Surface:
     """Perform a least-square fit of a point cloud `x` onto a spline basis.
 
     The points can be either a matrix (in which case the first index is
@@ -818,7 +871,7 @@ def least_square_fit(x, bases, u) -> Surface:
     return Surface(bases[0], bases[1], cp.transpose(1, 0, 2).reshape((np.prod(surf_shape), dim)))
 
 
-def teapot():
+def teapot() -> list[Surface]:
     """Generate the Utah teapot as 32 cubic bezier patches. This teapot has a
     rim, but no bottom. It is also self-intersecting making it unsuitable for
     perfect-match multipatch modeling.
