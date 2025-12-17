@@ -1,13 +1,19 @@
 from __future__ import annotations
 
 import struct
+from abc import ABC, abstractmethod
+from collections.abc import Iterable, Sequence
+from itertools import chain
 from pathlib import Path
+from types import TracebackType
+from typing import BinaryIO, Self, TextIO
 
 import numpy as np
 
 from splipy.splinemodel import SplineModel
 from splipy.surface import Surface
-from splipy.utils import ensure_listlike_old
+from splipy.typing import FloatArray
+from splipy.utils import ensure_listlike
 from splipy.volume import Volume
 
 from .master import MasterIO
@@ -25,27 +31,33 @@ BINARY_HEADER = "80sI"
 BINARY_FACET = "12fH"
 
 
-class ASCII_STL_Writer:
-    """Export 3D objects build of 3 or 4 vertices as ASCII STL file."""
+type Point = tuple[float, float, float]
+type TriFace = tuple[Point, Point, Point]
+type QuadFace = tuple[Point, Point, Point, Point]
+type Face = TriFace | QuadFace
 
-    def __init__(self, stream):
+
+class STL_Writer[IO: (TextIO, BinaryIO)](ABC):
+    fp: IO
+
+    def __init__(self, stream: IO) -> None:
         self.fp = stream
         self._write_header()
 
-    def _write_header(self):
-        self.fp.write("solid python\n")
+    @abstractmethod
+    def _write_header(self) -> None: ...
 
-    def close(self):
-        self.fp.write("endsolid python\n")
+    @abstractmethod
+    def close(self) -> None: ...
 
-    def _write(self, face):
-        self.fp.write(ASCII_FACET.format(face=face))
+    @abstractmethod
+    def _write(self, face: TriFace) -> None: ...
 
-    def _split(self, face):
+    def _split(self, face: QuadFace) -> tuple[TriFace, TriFace]:
         p1, p2, p3, p4 = face
         return (p1, p2, p3), (p3, p4, p1)
 
-    def add_face(self, face):
+    def add_face(self, face: Face) -> None:
         """Add one face with 3 or 4 vertices."""
         if len(face) == 4:
             face1, face2 = self._split(face)
@@ -56,31 +68,42 @@ class ASCII_STL_Writer:
         else:
             raise ValueError("only 3 or 4 vertices for each face")
 
-    def add_faces(self, faces):
+    def add_faces(self, faces: Iterable[Face]) -> None:
         """Add many faces."""
         for face in faces:
             self.add_face(face)
 
 
-class BINARY_STL_Writer(ASCII_STL_Writer):
+class ASCII_STL_Writer(STL_Writer[TextIO]):
+    """Export 3D objects build of 3 or 4 vertices as ASCII STL file."""
+
+    def _write_header(self) -> None:
+        self.fp.write("solid python\n")
+
+    def close(self) -> None:
+        self.fp.write("endsolid python\n")
+
+    def _write(self, face: TriFace) -> None:
+        self.fp.write(ASCII_FACET.format(face=face))
+
+
+class BINARY_STL_Writer(STL_Writer[BinaryIO]):
     """Export 3D objects build of 3 or 4 vertices as binary STL file."""
 
-    def __init__(self, stream):
+    counter: int
+
+    def __init__(self, stream: BinaryIO) -> None:
         self.counter = 0
-        #### new-style classes way of calling super constructor
-        # super(Binary_STL_Writer, self).__init__(stream)
+        super().__init__(stream)
 
-        #### old-style classes way of doing it
-        ASCII_STL_Writer.__init__(self, stream)
-
-    def close(self):
-        self._write_header()
-
-    def _write_header(self):
+    def _write_header(self) -> None:
         self.fp.seek(0)
         self.fp.write(struct.pack(BINARY_HEADER, b"Python Binary STL Writer", self.counter))
 
-    def _write(self, face):
+    def close(self) -> None:
+        self._write_header()
+
+    def _write(self, face: TriFace) -> None:
         self.counter += 1
         data = [
             0.0,
@@ -101,28 +124,32 @@ class BINARY_STL_Writer(ASCII_STL_Writer):
 
 
 class STL(MasterIO):
-    def __init__(self, filename, binary=True):
+    filename: str
+    binary: bool
+
+    writer: STL_Writer
+
+    def __init__(self, filename: str, binary: bool = True) -> None:
         if filename[-4:] != ".stl":
             filename += ".stl"
         self.filename = filename
         self.binary = binary
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         if self.binary:
-            fp = Path(self.filename).open("wb")
-            self.writer = BINARY_STL_Writer(fp)
+            self.writer = BINARY_STL_Writer(Path(self.filename).open("wb"))
         else:
-            fp = Path(self.filename).open("w")
-            self.writer = ASCII_STL_Writer(fp)
+            self.writer = ASCII_STL_Writer(Path(self.filename).open("w"))
         return self
 
-    def write(self, obj, n=None):
+    def write(self, obj: SplineModel | Surface | Volume, n: int | Sequence[int] | None = None) -> None:
         if isinstance(obj, SplineModel):
             if obj.pardim == 3:  # volume model
                 for surface in obj.boundary():
                     self.write_surface(surface.obj, n)
             elif obj.pardim == 2:  # surface model
-                for surface in obj:
+                for surface in obj.objects():
+                    assert isinstance(surface, Surface)
                     self.write_surface(surface, n)
 
         elif isinstance(obj, Volume):
@@ -136,14 +163,15 @@ class STL(MasterIO):
         else:
             raise ValueError("Unsopported object for STL format")
 
-    def write_surface(self, surface, n=None):
+    def write_surface(self, surface: Surface, n: int | Sequence[int] | None = None) -> None:
         # choose evaluation points as one of three cases:
         #   1. specified with input
         #   2. linear splines, only picks knots
         #   3. general splines choose 2*order-1 per knot span
         if n is not None:
-            n = ensure_listlike_old(n, 2)
+            n = ensure_listlike(n, 2)
 
+        u: FloatArray
         if n is not None:
             u = np.linspace(surface.start(0), surface.end(0), n[0])
         elif surface.order(0) == 2:
@@ -151,10 +179,20 @@ class STL(MasterIO):
         else:
             knots = surface.knots(0)
             p = surface.order(0)
-            u = [np.linspace(k0, k1, 2 * p - 3, endpoint=False) for (k0, k1) in zip(knots[:-1], knots[1:])]
-            u = [point for element in u for point in element] + list(knots)
-            u = np.sort(u)
+            u = np.sort(
+                np.fromiter(
+                    chain(
+                        chain.from_iterable(
+                            np.linspace(k0, k1, 2 * p - 3, endpoint=False)
+                            for k0, k1 in zip(knots[:-1], knots[1:])
+                        ),
+                        knots,
+                    ),
+                    dtype=float,
+                )
+            )
 
+        v: FloatArray
         if n is not None:
             v = np.linspace(surface.start(1), surface.end(1), n[1])
         elif surface.order(1) == 2:
@@ -162,9 +200,18 @@ class STL(MasterIO):
         else:
             knots = surface.knots(1)
             p = surface.order(1)
-            v = [np.linspace(k0, k1, 2 * p - 3, endpoint=False) for (k0, k1) in zip(knots[:-1], knots[1:])]
-            v = [point for element in v for point in element] + list(knots)
-            v = np.sort(v)
+            v = np.sort(
+                np.fromiter(
+                    chain(
+                        chain.from_iterable(
+                            np.linspace(k0, k1, 2 * p - 3, endpoint=False)
+                            for k0, k1 in zip(knots[:-1], knots[1:])
+                        ),
+                        knots,
+                    ),
+                    dtype=float,
+                )
+            )
 
         # perform evaluation and make sure that we have 3 components (in case of 2D geometries)
         x = surface(u, v)
@@ -173,13 +220,18 @@ class STL(MasterIO):
 
         # compute tiny quad pieces
         faces = [
-            [x[i, j], x[i, j + 1], x[i + 1, j + 1], x[i + 1, j]]
+            (x[i, j], x[i, j + 1], x[i + 1, j + 1], x[i + 1, j])
             for i in range(x.shape[0] - 1)
             for j in range(x.shape[1] - 1)
         ]
 
         self.writer.add_faces(faces)
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(
+        self,
+        exc_type: type[BaseException],
+        exc_value: BaseException,
+        traceback: TracebackType,
+    ) -> None:
         self.writer.close()
         self.writer.fp.close()
