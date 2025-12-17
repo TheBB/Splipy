@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from types import TracebackType
+from typing import Any, Self, cast, Iterable, Sized, Protocol
+
 import numpy as np
 from rhino3dm import (
     Arc,
@@ -9,35 +12,55 @@ from rhino3dm import (
     Cylinder,
     Extrusion,
     File3dm,
+    GeometryBase,
     Line,
     NurbsCurve,
     NurbsSurface,
+    Point4d,
     Polyline,
     PolylineCurve,
     Sphere,
+    File3dmObject,
+    BrepFace,
 )
 from rhino3dm import Curve as threedmCurve  # name conflict with splipy
 from rhino3dm import Surface as threedmSurface  # name conflict with splipy
 
 from splipy import BSplineBasis, Curve, Surface, curve_factory
+from splipy.splineobject import SplineObject
 
 from .master import MasterIO
 
 
+# The rhino3dm type hints are incomplete, hence we have some shims.
+class NurbsSurfacePointListShim(Protocol):
+    def __getitem__(self, index: Any) -> Point4d: ...
+
+class NurbsCurvePointListShim(Protocol):
+    def __getitem__(self, index: Any) -> Point4d: ...
+    def __len__(self) -> int: ...
+
+
 class ThreeDM(MasterIO):
-    def __init__(self, filename):
+    filename: str
+    trimming_curves: list[Curve]
+
+    onlywrite: bool
+    fstream: File3dm
+
+    def __init__(self, filename: str) -> None:
         if filename[-4:] != ".3dm":
             filename += ".3dm"
         self.filename = filename
         self.trimming_curves = []
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         return self
 
-    def write(self, obj):
+    def write(self, _: SplineObject) -> None:
         raise OSError("Writing to 3DM not supported")
 
-    def read(self):
+    def read(self) -> list[SplineObject]:
         if not hasattr(self, "fstream"):
             self.onlywrite = False
             self.fstream = File3dm.Read(self.filename)
@@ -45,21 +68,19 @@ class ThreeDM(MasterIO):
         if self.onlywrite:
             raise OSError(f"Could not read from file {self.filename}")
 
-        result = []
+        result: list[SplineObject] = []
 
-        for obj in self.fstream.Objects:
-            geom = obj.Geometry
-            print(geom)
+        for obj in cast("Iterable[File3dmObject]", self.fstream.Objects):
+            geom: GeometryBase | Polyline = obj.Geometry
             if type(geom) is Extrusion:
                 geom = geom.ToBrep(splitKinkyFaces=True)
             if type(geom) is Brep:
-                for idx in range(len(geom.Faces)):
-                    print("  ", geom.Faces[idx], "(", geom.Faces[idx].UnderlyingSurface(), ")")
-                    nsrf = geom.Faces[idx].UnderlyingSurface().ToNurbsSurface()
+                for face in cast("Iterable[BrepFace]", geom.Faces):
+                    nsrf = face.UnderlyingSurface().ToNurbsSurface()
                     result.append(self.read_surface(nsrf))
 
             if type(geom) is Line:
-                geom = result.append(curve_factory.line(geom.From, geom.To))
+                result.append(curve_factory.line(geom.From, geom.To))
                 continue
             if type(geom) is PolylineCurve:
                 geom = geom.ToPolyline()
@@ -82,54 +103,61 @@ class ThreeDM(MasterIO):
 
         return result
 
-    def read_surface(self, nsrf):
-        knotsu = [0]
-        for i in nsrf.KnotsU:
+    def read_surface(self, nsrf: NurbsSurface) -> Surface:
+        knotsu: list[float] = [0]
+        for i in cast("Iterable[float]", nsrf.KnotsU):
             knotsu.append(i)
         knotsu.append(knotsu[len(knotsu) - 1])
         knotsu[0] = knotsu[1]
 
-        knotsv = [0]
-        for i in nsrf.KnotsV:
+        knotsv: list[float] = [0]
+        for i in cast("Iterable[float]", nsrf.KnotsV):
             knotsv.append(i)
         knotsv.append(knotsv[len(knotsv) - 1])
         knotsv[0] = knotsv[1]
 
         basisu = BSplineBasis(nsrf.OrderU, knotsu, -1)
         basisv = BSplineBasis(nsrf.OrderV, knotsv, -1)
-        cpts = []
 
         cpts = np.ndarray((nsrf.Points.CountU * nsrf.Points.CountV, 3 + nsrf.IsRational))
+        pts = cast("NurbsSurfacePointListShim", nsrf.Points)
         for v in range(0, nsrf.Points.CountV):
             for u in range(0, nsrf.Points.CountU):
-                cpts[u + v * nsrf.Points.CountU, 0] = nsrf.Points[u, v].X
-                cpts[u + v * nsrf.Points.CountU, 1] = nsrf.Points[u, v].Y
-                cpts[u + v * nsrf.Points.CountU, 2] = nsrf.Points[u, v].Z
+                cpts[u + v * nsrf.Points.CountU, 0] = pts[u, v].X
+                cpts[u + v * nsrf.Points.CountU, 1] = pts[u, v].Y
+                cpts[u + v * nsrf.Points.CountU, 2] = pts[u, v].Z
                 if nsrf.IsRational:
-                    cpts[u + v * nsrf.Points.CountU, 3] = nsrf.Points[u, v].W
+                    cpts[u + v * nsrf.Points.CountU, 3] = pts[u, v].W
 
         return Surface(basisu, basisv, cpts, nsrf.IsRational)
 
-    def read_curve(self, ncrv):
-        knots = [0]
-        for i in ncrv.Knots:
+    def read_curve(self, ncrv: NurbsCurve) -> Curve:
+        knots: list[float] = [0]
+        for i in cast("Iterable[float]", ncrv.Knots):
             knots.append(i)
         knots[0] = knots[1]
         knots.append(knots[len(knots) - 1])
         basis = BSplineBasis(ncrv.Order, knots, -1)
-        cpts = []
 
-        cpts = np.ndarray((len(ncrv.Points), ncrv.Dimension + ncrv.IsRational))
-        for u in range(0, len(ncrv.Points)):
-            cpts[u, 0] = ncrv.Points[u].X
-            cpts[u, 1] = ncrv.Points[u].Y
+        points = cast("NurbsCurvePointListShim", ncrv.Points)
+
+        cpts = np.ndarray((len(points), ncrv.Dimension + ncrv.IsRational))
+        for u in range(0, len(points)):
+            print(type(points[u]))
+            cpts[u, 0] = points[u].X
+            cpts[u, 1] = points[u].Y
             if ncrv.Dimension > 2:
-                cpts[u, 2] = ncrv.Points[u].Z
+                cpts[u, 2] = points[u].Z
             if ncrv.IsRational:
-                cpts[u, 3] = ncrv.Points[u].W
+                cpts[u, 3] = points[u].W
 
         return Curve(basis, cpts, ncrv.IsRational)
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(
+        self,
+        exc_type: type[BaseException],
+        exc_value: BaseException,
+        traceback: TracebackType,
+    ) -> None:
         # Apperently File3DM objects don't need to dedicated cleanup/close code
         pass
