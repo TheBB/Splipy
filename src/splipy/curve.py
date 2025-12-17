@@ -360,6 +360,12 @@ class Curve(SplineObject):
 
         return self
 
+    def knot_continuity(self, knot: Scalar) -> int:
+        """Get the parametric continuity of the curve at a given knot.
+        Will throw an error if the input is not a knot value.
+        """
+        return self.bases[0].knot_continuity(knot)
+
     def continuity(self, knot: Scalar) -> int | float:
         """Get the parametric continuity of the curve at a given point. Will
         return p-1-m, where m is the knot multiplicity and inf between knots"""

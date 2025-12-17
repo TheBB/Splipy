@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import re
+from types import TracebackType
+from typing import ClassVar, Self, Sequence, cast
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from xml.dom import minidom
@@ -10,13 +12,15 @@ import numpy as np
 from splipy import curve_factory, state
 from splipy.basis import BSplineBasis
 from splipy.curve import Curve
+from splipy.splinemodel import SplineModel
 from splipy.splineobject import SplineObject
 from splipy.surface import Surface
+from splipy.typing import FloatArray
 
 from .master import MasterIO
 
 
-def read_number_and_unit(mystring):
+def read_number_and_unit(mystring: str) -> tuple[float, str]:
     unit = ""
     try:
         for i in range(1, len(mystring) + 1):
@@ -26,7 +30,7 @@ def read_number_and_unit(mystring):
     return (number, unit)
 
 
-def bezier_representation(curve):
+def bezier_representation(curve: Curve) -> Curve:
     """Compute a Bezier representation of a given spline curve. The input
     curve must be of order less than or equal to 4. The bezier
     representation is of order 4, and maximal knot multiplicity, i.e.
@@ -47,19 +51,39 @@ def bezier_representation(curve):
 
     # make it non-periodic
     if bezier.periodic():
-        bezier = bezier.split(bezier.start(0))
+        # TODO(Eivind): Use a type-safe split method.
+        bezier = cast("Curve", bezier.split(bezier.start(0)))
 
     # make sure it is C0 everywhere
     for k in bezier.knots(0):
-        bezier.insert_knot([k] * bezier.continuity(k))
+        bezier.insert_knot([k] * bezier.knot_continuity(k))
 
     return bezier
 
 
 class SVG(MasterIO):
-    namespace = "{http://www.w3.org/2000/svg}"
+    namespace: ClassVar[str] = "{http://www.w3.org/2000/svg}"
 
-    def __init__(self, filename, width=1000, height=1000, margin=0.05):
+    filename: str
+    width: float
+    height: float
+    margin: float
+
+    all_objects: list[SplineObject]
+
+    center: tuple[float, float]
+    offset: tuple[float, float]
+    scale: float
+
+    xmlRoot: ET.Element
+
+    def __init__(
+        self,
+        filename: str,
+        width: int = 1000,
+        height: int = 1000,
+        margin: float = 0.05,
+    ) -> None:
         """Constructor
         :param filename: Filename to write results to
         :type  filename: String
@@ -80,14 +104,19 @@ class SVG(MasterIO):
 
         self.all_objects = []
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(
+        self,
+        exc_type: type[BaseException],
+        exc_value: BaseException,
+        traceback: TracebackType,
+    ) -> None:
         # in case something goes wrong, print error and abandon writing process
         if exc_type is not None:
             print(exc_type, exc_value, traceback)
-            return False
+            return
 
         # compute the bounding box for all geometries
         boundingbox = [np.inf, np.inf, -np.inf, -np.inf]
@@ -110,8 +139,8 @@ class SVG(MasterIO):
             marginPixels = self.width * self.margin
             self.scale = self.width * (1 - 2 * self.margin) / (boundingbox[2] - boundingbox[0])
             self.height = self.width * geometryRatio + 2 * marginPixels
-        self.center = [boundingbox[0], boundingbox[1]]
-        self.offset = [marginPixels, marginPixels]
+        self.center = (boundingbox[0], boundingbox[1])
+        self.offset = (marginPixels, marginPixels)
 
         # create xml root tag
         self.xmlRoot = ET.Element(
@@ -138,10 +167,17 @@ class SVG(MasterIO):
             result = reparsed.toprettyxml(indent="  ")  # adds newline and inline
             f = Path(self.filename).open("w")
             f.write(result)
-            return None
-        return None
+            return
+        return
 
-    def write_curve(self, xmlNode, curve, fill="none", stroke="#000000", width=2):
+    def write_curve(
+        self,
+        xmlNode: ET.Element,
+        curve: Curve,
+        fill: str = "none",
+        stroke: str = "#000000",
+        width: int = 2,
+    ) -> None:
         """Writes a Curve to the xml tree. This will draw a single curve
 
         :param xmlNode: Node in xml tree
@@ -172,7 +208,7 @@ class SVG(MasterIO):
 
         curveNode.attrib["d"] = pathString
 
-    def write_surface(self, surface, fill="#ffcc99"):
+    def write_surface(self, surface: Surface, fill: str = "#ffcc99") -> None:
         """Writes a Surface to the xml tree. This will draw the surface along with all knot lines
 
         :param surface: The spline surface to write
@@ -209,7 +245,7 @@ class SVG(MasterIO):
         for meshline in knotlines:
             self.write_curve(groupNode, meshline, width=1)
 
-    def write(self, obj):
+    def write(self, obj: Sequence[SplineObject] | SplineObject | SplineModel) -> None:
         """Writes a list of planar curves and surfaces to vector graphics SVG file.
         The image will never be stretched, and the geometry will keep width/height ratio
         of original geometry, regardless of provided width/height ratio from arguments.
@@ -222,10 +258,17 @@ class SVG(MasterIO):
         # actually this is a dummy method. It will collect all geometries provided
         # and ton't actually write them to file until __exit__ is called
 
-        if isinstance(obj[0], SplineObject):  # input SplineModel or list
+        if isinstance(obj, SplineModel):
+            for o in obj.objects():
+                self.write(o)
+            return
+
+        if not isinstance(obj, SplineObject):
             for o in obj:
                 self.write(o)
             return
+
+        assert isinstance(obj, SplineObject)
 
         if obj.dimension != 2:
             raise RuntimeError("SVG files only applicable for 2D geometries")
@@ -233,14 +276,14 @@ class SVG(MasterIO):
         # have to clone stuff we put here, in case they change on the outside
         self.all_objects.append(obj.clone())
 
-    def read(self):
+    def read(self) -> list[SplineObject]:
         tree = ET.parse(self.filename)
         root = tree.getroot()
         parent_map = {c: p for p in tree.iter() for c in p}
         if "width" in root.attrib:
             self.width, _ = read_number_and_unit(root.attrib["width"])
             self.height, _ = read_number_and_unit(root.attrib["height"])
-        result = []
+        result: list[SplineObject] = []
         for path in root.iter(SVG.namespace + "path"):
             crvs = self.curves_from_path(path.attrib["d"])
             parent = path
@@ -257,12 +300,13 @@ class SVG(MasterIO):
                 result.append(crv)
         return result
 
-    def transform(self, curve, operation):
+    def transform(self, curve: Curve, operation: str) -> None:
         # intended input operation string: 'translate(-10,-20) scale(2) rotate(45) translate(5,10)'
         all_operations = re.findall(r"[^\)]*\)", operation.lower())
         all_operations.reverse()
         for one_operation in all_operations:
             parts = re.search(r"([a-z]*)\w*\((.*)\)", one_operation.strip())
+            assert parts is not None
             func = parts.group(1)
             args = [float(d) for d in parts.group(2).split(",")]
             if func == "translate":
@@ -288,7 +332,7 @@ class SVG(MasterIO):
                     cp = cp @ M.T
                     curve.controlpoints = np.reshape(np.array(cp), curve.controlpoints.shape)
 
-    def curves_from_path(self, path):
+    def curves_from_path(self, path: str) -> list[Curve]:
         # see https://www.w3schools.com/graphics/svg_path.asp for documentation
         # and also https://www.w3.org/TR/SVG/paths.html
 
@@ -297,8 +341,8 @@ class SVG(MasterIO):
             pass
         else:
             pass
-        last_curve = None
-        result = []
+        last_curve: Curve | None = None
+        result: list[Curve] = []
 
         # each 'piece' is an operator (M,C,Q,L etc) and accomponying list of argument points
         for piece in re.findall("[a-zA-Z][^a-zA-Z]*", path):
@@ -351,6 +395,7 @@ class SVG(MasterIO):
                 knot = list(range(int(len(np_pts) / 2) + 1)) * 3
                 knot += [knot[0], knot[-1]]
                 knot.sort()
+                assert last_curve is not None
                 x0 = np.array(last_curve[-1])
                 xn1 = np.array(last_curve[-2])
                 controlpoints.append(2 * x0 - xn1)
@@ -367,6 +412,7 @@ class SVG(MasterIO):
                 knot = list(range(int(len(np_pts) / 2) + 1)) * 3
                 knot += [knot[0], knot[-1]]
                 knot.sort()
+                assert last_curve is not None
                 x0 = np.array(last_curve[-1])
                 xn1 = np.array(last_curve[-2])
                 controlpoints.append(2 * x0 - xn1)
@@ -388,7 +434,7 @@ class SVG(MasterIO):
             elif piece[0] == "Q":
                 # quadratic spline, absolute position
                 controlpoints = [startpoint]
-                knot = list(range(len(np_pts) / 2 + 1)) * 2
+                knot = list(range(len(np_pts) // 2 + 1)) * 2
                 knot += [knot[0], knot[-1]]
                 knot.sort()
                 for cp in np_pts:
@@ -491,9 +537,10 @@ class SVG(MasterIO):
                     )
                 center = np.linalg.solve(R.T, cprime) + (startpoint + xend) / 2
 
-                def arccos(vec1, vec2):
-                    return np.sign(vec1[0] * vec2[1] - vec1[1] * vec2[0]) * np.arccos(
-                        vec1.dot(vec2) / np.linalg.norm(vec1) / np.linalg.norm(vec2)
+                def arccos(vec1: FloatArray, vec2: FloatArray) -> float:
+                    return float(
+                        np.sign(vec1[0] * vec2[1] - vec1[1] * vec2[0])
+                        * np.arccos(vec1.dot(vec2) / np.linalg.norm(vec1) / np.linalg.norm(vec2))
                     )
 
                 tmp1 = np.divide(xp - cprime, [rx, ry])
@@ -512,6 +559,7 @@ class SVG(MasterIO):
                 # curve_piece = Curve(BSplineBasis(2), [startpoint, last_curve[0]])
                 # curve_piece.reparam([0, curve_piece.length()])
                 # last_curve.append(curve_piece).make_periodic(0)
+                assert last_curve is not None
                 last_curve.make_periodic(0)
                 result.append(last_curve)
                 last_curve = None
@@ -520,11 +568,13 @@ class SVG(MasterIO):
                 raise RuntimeError("Unknown path parameter:" + piece)
 
             if curve_piece.length() > state.controlpoint_absolute_tolerance:
-                curve_piece.reparam([0, curve_piece.length()])
+                curve_piece.reparam((0, curve_piece.length()))
                 if last_curve is None:
                     last_curve = curve_piece
                 else:
                     last_curve.append(curve_piece)
+
+            assert last_curve is not None
             startpoint = last_curve[-1, :2]  # disregard rational weight (if any)
 
         if last_curve is not None:
