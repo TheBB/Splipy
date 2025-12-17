@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from itertools import islice
 from pathlib import Path
+from types import TracebackType
+from typing import Self, TextIO
 
 import numpy as np
 
@@ -15,21 +18,25 @@ from .master import MasterIO
 
 
 class SPL(MasterIO):
-    def __init__(self, filename):
+    fstream: TextIO
+    filename: str
+    trimming_curves: list[Curve]
+
+    def __init__(self, filename: str) -> None:
         if not filename.endswith(".spl"):
             filename += ".spl"
         self.filename = filename
         self.trimming_curves = []
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         self.fstream = Path(self.filename).open()
         return self
 
-    def lines(self):
+    def lines(self) -> Iterator[str]:
         for line in self.fstream:
             yield line.split("#", maxsplit=1)[0].strip()
 
-    def read(self):
+    def read(self) -> list[SplineObject]:
         lines = self.lines()
 
         version = next(lines).split()
@@ -51,16 +58,13 @@ class SPL(MasterIO):
         cpts = np.array([float(k) for k in islice(lines, totcoeffs * physdim)])
         cpts = cpts.reshape(physdim, *(ncoeffs[::-1])).transpose()
 
-        if pardim == 1:
-            patch = Curve(*bases, controlpoints=cpts, raw=True)
-        elif pardim == 2:
-            patch = Surface(*bases, controlpoints=cpts, raw=True)
-        elif pardim == 3:
-            patch = Volume(*bases, controlpoints=cpts, raw=True)
-        else:
-            patch = SplineObject(bases, controlpoints=cpts, raw=True)
+        obj = SplineObject.construct_subclass(bases, cpts, rational=False, raw=True)
+        return [obj]
 
-        return [patch]
-
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(
+        self,
+        exc_type: type[BaseException],
+        exc_value: BaseException,
+        traceback: TracebackType,
+    ) -> None:
         self.fstream.close()
