@@ -711,6 +711,15 @@ def loft(*curves):
     if len(curves) == 1:
         curves = curves[0]
 
+    # compute the euclidian length between the curves (for a good guess of parametric spacing)
+    x = [c.center() for c in curves]
+    # ensure all centers have the same dimension (typically some are 2D points and others are 3D points)
+    max_dim = max(c.dimension for c in curves)
+    x = [np.pad(xi, (0, max_dim - len(xi)), mode="constant") for xi in x]
+    dist = [0]
+    for x1, x0 in zip(x[1:], x[:-1]):
+        dist.append(dist[-1] + np.linalg.norm(x1 - x0))
+
     # clone input, so we don't change those references
     # make sure everything has the same dimension since we need to compute length
     curves = [c.clone().set_dimension(3) for c in curves]
@@ -719,15 +728,7 @@ def loft(*curves):
     if len(curves) == 3:
         # can't do cubic spline interpolation, so we'll do quadratic
         basis2 = BSplineBasis(3)
-        dist = basis2.greville()
     else:
-        x = [c.center() for c in curves]
-
-        # create knot vector from the euclidian length between the curves
-        dist = [0]
-        for x1, x0 in zip(x[1:], x[:-1]):
-            dist.append(dist[-1] + np.linalg.norm(x1 - x0))
-
         # using "free" boundary condition by setting N'''(u) continuous at second to last and second knot
         knot = [dist[0]] * 4 + dist[2:-2] + [dist[-1]] * 4
         basis2 = BSplineBasis(4, knot)
