@@ -647,7 +647,6 @@ class TestSurface(unittest.TestCase):
     def test_center(self):
         # make an ellipse at (2,1)
         surf = sf.disc(3)
-        print(surf)
         surf.scale((3, 1))
         surf += (2, 1)
         center = surf.center()
@@ -842,6 +841,131 @@ class TestSurface(unittest.TestCase):
         crv = surf.const_par_curve(1.0, "v")
         u = np.linspace(0, 1, 13)
         self.assertTrue(np.allclose(surf(u, 1.0).reshape(13, 2), crv(u)))
+
+    def test_antiderivative(self):
+        """Test that antiderivative inverts the derivative operation for surfaces."""
+
+        # Test 1: Bilinear surface - constant derivative in both directions
+        # Surface: x(u,v) = u, y(u,v) = v, z(u,v) = 0
+        # d/du: dx/du = 1, dy/du = 0, dz/du = 0
+        # Antiderivative in u should give x(u,v) = u^2/2, y(u,v) = 0, z(u,v) = 0
+        basis1 = BSplineBasis(2, [0, 0, 1, 1])
+        basis2 = BSplineBasis(2, [0, 0, 1, 1])
+        controlpoints = [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0]]
+        surf = Surface(basis1, basis2, controlpoints)
+
+        # Test integration in u-direction
+        integral_u = surf.get_antiderivative_surface('u')
+
+        # Check: order increased by 1 in u-direction
+        self.assertEqual(integral_u.order(0), surf.order(0) + 1)
+        self.assertEqual(integral_u.order(1), surf.order(1))
+
+        # Check: integral at u=0 is zero (default constant)
+        u_start = integral_u.start(0)
+        v_test = np.linspace(0, 1, 11)
+        integral_at_start = integral_u(u_start, v_test)
+        self.assertTrue(np.allclose(integral_at_start, 0.0, atol=1e-12))
+
+        # Check: derivative of integral equals original
+        u = np.linspace(0, 1, 11)
+        v = np.linspace(0, 1, 11)
+        original = surf(u, v)
+        recovered = integral_u.derivative(u, v, d=(1, 0))
+        error = np.linalg.norm(original - recovered)
+        self.assertAlmostEqual(error, 0.0, places=10)
+
+        # Test 2: Integration in v-direction
+        integral_v = surf.get_antiderivative_surface('v')
+
+        # Check: order increased by 1 in v-direction
+        self.assertEqual(integral_v.order(0), surf.order(0))
+        self.assertEqual(integral_v.order(1), surf.order(1) + 1)
+
+        # Check: integral at v=0 is zero
+        v_start = integral_v.start(1)
+        u_test = np.linspace(0, 1, 11)
+        integral_at_start = integral_v(u_test, v_start)
+        self.assertTrue(np.allclose(integral_at_start, 0.0, atol=1e-12))
+
+        # Check: derivative of integral equals original
+        original = surf(u, v)
+        recovered = integral_v.derivative(u, v, d=(0, 1))
+        error = np.linalg.norm(original - recovered)
+        self.assertAlmostEqual(error, 0.0, places=10)
+
+        # Test 3: Higher-order surface with custom integration constant
+        basis1 = BSplineBasis(3, [0, 0, 0, 1, 1, 1])
+        basis2 = BSplineBasis(3, [0, 0, 0, 1, 1, 1])
+        # Create a more complex surface
+        cp = [
+            [0, 0, 0], [1.5, 0, 0.5], [2, 0, 0],
+            [0, 1, 0.3], [1, 0.5, 1], [2, 1, 0.3],
+            [0, 2, 0], [1, 2, 0.5], [2.2, 2, 0]
+        ]
+        surf = Surface(basis1, basis2, cp)
+
+        constant = np.array([1.0, 2.0, 3.0])
+        integral_with_const = surf.get_antiderivative_surface('u', constant=constant)
+
+        # Check: integral at start equals the constant
+        u_start = integral_with_const.start(0)
+        v_test = np.linspace(0, 1, 11)
+        integral_at_start = integral_with_const(u_start, v_test)
+        for point in integral_at_start:
+            error = np.linalg.norm(point - constant)
+            self.assertLess(error, 1e-12)
+
+        # Check: derivative of integral equals original
+        u = np.linspace(0, 1, 21)
+        v = np.linspace(0, 1, 21)
+        original = surf(u, v)
+        recovered = integral_with_const.derivative(u, v, d=(1, 0))
+        error = np.linalg.norm(original - recovered)
+        self.assertAlmostEqual(error, 0.0, places=9)
+
+        # Test 4: Verify double integration (integrate in u, then in v)
+        basis = BSplineBasis(2, [0, 0, 1, 1])
+        cp = [[0, 0, 0], [2, 1, 0], [1, 2, 0], [3, 3, 0]]
+        surf = Surface(basis, basis, cp)
+
+        # First integrate in u
+        integral_u = surf.get_antiderivative_surface('u')
+        # Then integrate in v
+        integral_uv = integral_u.get_antiderivative_surface('v')
+
+        # Check: orders increased in both directions
+        self.assertEqual(integral_uv.order(0), surf.order(0) + 1)
+        self.assertEqual(integral_uv.order(1), surf.order(1) + 1)
+
+        # Check: mixed derivative d^2/dudv equals original
+        u = np.linspace(0, 1, 15)
+        v = np.linspace(0, 1, 15)
+        original = surf(u, v)
+        recovered = integral_uv.derivative(u, v, d=(1, 1))
+        error = np.linalg.norm(original - recovered)
+        self.assertAlmostEqual(error, 0.0, places=9)
+
+        # Test 5: Rational splines should raise an error
+        cp_rational = [[0, 0, 0, 1], [1, 0, 0, 1], [0, 1, 0, 1], [1, 1, 0, 1]]
+        surf_rational = Surface(basis, basis, cp_rational, rational=True)
+
+        with self.assertRaises(RuntimeError):
+            surf_rational.get_antiderivative_surface('u')
+
+        # Test 6: 2D surface (z coordinate implicit)
+        cp_2d = [[0, 0], [1, 0], [0, 1], [1, 1]]
+        surf_2d = Surface(basis, basis, cp_2d)
+
+        integral_2d = surf_2d.get_antiderivative_surface('u')
+
+        # Check: derivative of integral equals original
+        u = np.linspace(0, 1, 11)
+        v = np.linspace(0, 1, 11)
+        original_2d = surf_2d(u, v)
+        recovered_2d = integral_2d.derivative(u, v, d=(1, 0))
+        error = np.linalg.norm(original_2d - recovered_2d)
+        self.assertAlmostEqual(error, 0.0, places=10)
 
 
 if __name__ == "__main__":

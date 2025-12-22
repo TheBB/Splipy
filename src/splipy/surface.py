@@ -371,4 +371,111 @@ class Surface(SplineObject):
                 result += str(self.controlpoints[i, j, :]) + "\n"
         return result
 
+    def get_antiderivative_surface(
+        self, direction: Direction, constant: ArrayLike | None = None
+    ) -> Surface:
+        """Compute the antiderivative (integral) of the surface in a given parametric direction.
+
+        The antiderivative is computed by inverting the derivative operator on
+        the spline space in the specified parametric direction. The result is a 
+        new surface of order p+1 in that direction (where p is the current order) 
+        whose derivative in that direction equals this surface.
+
+        The antiderivative is only unique up to an additive constant surface. By 
+        default, the constant is chosen such that the antiderivative evaluates to 
+        zero at the start of the parametric domain in the given direction. You can 
+        specify a different constant to shift the result.
+
+        :param direction: The parametric direction to integrate in (0 or 'u' for first, 
+            1 or 'v' for second direction)
+        :type direction: int or str
+        :param array-like constant: Optional constant vector to add to the result.
+            If not provided, defaults to zero (antiderivative is zero at parameter start).
+            Must have the same dimension as the surface's physical space.
+        :type constant: array-like or None
+        :return: A new surface whose derivative in the given direction equals self
+        :rtype: Surface
+        :raises RuntimeError: If the surface is rational (not yet supported)
+
+        Examples:
+
+        .. code:: python
+
+            import splipy as sp
+            import numpy as np
+
+            # Create a simple bilinear surface
+            surf = sp.surface_factory.square()
+
+            # Compute antiderivative in u-direction
+            integral_u = surf.get_antiderivative_surface('u')
+
+            # The derivative of integral should equal the original surface
+            u = np.linspace(0, 1, 11)
+            v = np.linspace(0, 1, 11)
+            diff = np.linalg.norm(integral_u.derivative(u, v, d=(1,0)) - surf(u, v))
+            print(f"Error: {diff}")  # Should be near machine precision
+
+        """
+        if self.rational:
+            raise RuntimeError("Antiderivative not yet supported for rational splines")
+
+        # Validate and normalize direction
+        d = check_direction(direction, self.pardim)
+
+        # Get the current knot vector and order in the specified direction
+        old_knots = self.knots(d, with_multiplicities=True)
+        p = self.order(d)
+        n = self.shape[d]
+
+        # New basis has order p+1 and n+1 control points
+        # The new knot vector is: [k_0, k_0, k_1, k_2, ..., k_m, k_m]
+        # where [k_0, k_1, ..., k_m] is the original knot vector
+        new_knots = np.concatenate(([old_knots[0]], old_knots, [old_knots[-1]]))
+        new_basis = BSplineBasis(p + 1, new_knots)
+
+        # Build new control points array with one additional control point in direction d
+        new_shape = list(self.controlpoints.shape)
+        new_shape[d] = n + 1
+        new_controlpoints = np.zeros(new_shape, dtype=np.float64)
+
+        # Compute the antiderivative control points
+        # For each control point, we integrate along direction d
+        # The relationship is:
+        #   cp_new[i+1] - cp_new[i] = (k_new[i+p+1] - k_new[i+1]) / p * cp_old[i]
+        
+        if d == 0:
+            # Integrate in u-direction
+            for i in range(n):
+                delta_knot = old_knots[i + p] - old_knots[i]
+                new_controlpoints[i + 1, :, :] = (
+                    new_controlpoints[i, :, :] + (delta_knot / p) * self.controlpoints[i, :, :]
+                )
+        else:  # d == 1
+            # Integrate in v-direction
+            for j in range(n):
+                delta_knot = old_knots[j + p] - old_knots[j]
+                new_controlpoints[:, j + 1, :] = (
+                    new_controlpoints[:, j, :] + (delta_knot / p) * self.controlpoints[:, j, :]
+                )
+
+        # Apply the integration constant
+        if constant is None:
+            constant = np.zeros(self.dimension + self.rational, dtype=np.float64)
+        else:
+            constant = np.atleast_1d(np.asarray(constant, dtype=np.float64))
+            if len(constant) != self.dimension + self.rational:
+                raise ValueError(
+                    f"constant must have length {self.dimension + self.rational}, got {len(constant)}"
+                )
+
+        new_controlpoints += constant
+
+        # Create the new surface with updated basis in the specified direction
+        # Use raw=True to avoid reshaping the already correctly-shaped control points
+        if d == 0:
+            return Surface(new_basis, self.bases[1], new_controlpoints, self.rational, raw=True)
+        else:
+            return Surface(self.bases[0], new_basis, new_controlpoints, self.rational, raw=True)
+
     get_derivative_surface = SplineObject.get_derivative_spline
