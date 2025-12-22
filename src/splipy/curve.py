@@ -571,50 +571,7 @@ class Curve(SplineObject):
             print(f"Error: {diff}")  # Should be near machine precision
 
         """
-        if self.rational:
-            raise RuntimeError("Antiderivative not yet supported for rational splines")
-
-        # Get the current knot vector and order
-        old_knots = self.knots(0, with_multiplicities=True)
-        p = self.order(0)
-        n = self.shape[0]
-
-        # New basis has order p+1 and n+1 control points
-        # The new knot vector is: [k_0, k_0, k_1, k_2, ..., k_m, k_m]
-        # where [k_0, k_1, ..., k_m] is the original knot vector
-        new_knots = np.concatenate(([old_knots[0]], old_knots, [old_knots[-1]]))
-        new_basis = BSplineBasis(p + 1, new_knots)
-
-        # Build inverse differentiation matrix using the new knot vector
-        # For the antiderivative with order p+1:
-        #   derivative_cp[i] = p / (k_new[i+p+1] - k_new[i+1]) * (cp_new[i+1] - cp_new[i])
-        # where k_new is the new knot vector
-        # Inverting:
-        #   cp_new[i+1] - cp_new[i] = (k_new[i+p+1] - k_new[i+1]) / p * derivative_cp[i]
-
-        new_controlpoints = np.zeros((n + 1, self.dimension + self.rational), dtype=np.float64)
-
-        for i in range(n):
-            # For the new knot vector with knot inserted at start and end
-            # We map: old knot index j -> new knot index j+1
-            # So: k_new[i+p+1] corresponds to k_old[i+p] and
-            #     k_new[i+1] corresponds to k_old[i]
-            delta_knot = old_knots[i + p] - old_knots[i]
-            new_controlpoints[i + 1, :] = new_controlpoints[i, :] + (delta_knot / p) * self.controlpoints[i, :]
-
-        # Apply the integration constant
-        if constant is None:
-            constant = np.zeros(self.dimension + self.rational, dtype=np.float64)
-        else:
-            constant = np.atleast_1d(np.asarray(constant, dtype=np.float64))
-            if len(constant) != self.dimension + self.rational:
-                raise ValueError(
-                    f"constant must have length {self.dimension + self.rational}, got {len(constant)}"
-                )
-
-        new_controlpoints += constant
-
-        return Curve(new_basis, new_controlpoints, self.rational)
+        return cast("Curve", super().get_antiderivative_spline(0, constant))
 
     def __repr__(self) -> str:
         return str(self.bases[0]) + "\n" + str(self.controlpoints)
