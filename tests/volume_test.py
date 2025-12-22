@@ -783,22 +783,38 @@ class TestVolume(unittest.TestCase):
         basis3 = BSplineBasis(3, [0, 0, 0, 3, 3, 3])
         # create cube [0,2]^3 with tiny variations at decimal point
         controlpoints = [
-            [0.0, 0.0, 0.0], [1.1, 0.1, 0.0], [2.0, 0.0, 0.2], 
-            [0.1, 1.0, 0.0], [1.2, 1.0, 0.1], [2.0, 1.0, 0.0], 
-            [0.0, 2.0, 0.0], [1.0, 2.1, 0.1], [2.0, 2.0, 0.0], 
-
-            [0.1, 0.0, 1.4], [1.1, 0.1, 1.0], [2.0, 0.3, 1.2], 
-            [0.0, 1.1, 1.3], [1.1, 1.2, 1.1], [2.0, 1.0, 1.0], 
-            [0.2, 2.2, 1.2], [1.2, 2.0, 1.0], [2.0, 2.0, 1.1], 
-
-            [0.0, 0.0, 2.5], [1.1, 0.3, 2.0], [2.0, 0.0, 2.1], 
-            [0.1, 1.1, 2.0], [1.1, 1.1, 2.2], [2.0, 1.1, 2.0], 
-            [0.0, 2.1, 2.3], [1.3, 2.1, 2.0], [2.0, 2.0, 2.0]
+            [0.0, 0.0, 0.0],
+            [1.1, 0.1, 0.0],
+            [2.0, 0.0, 0.2],
+            [0.1, 1.0, 0.0],
+            [1.2, 1.0, 0.1],
+            [2.0, 1.0, 0.0],
+            [0.0, 2.0, 0.0],
+            [1.0, 2.1, 0.1],
+            [2.0, 2.0, 0.0],
+            [0.1, 0.0, 1.4],
+            [1.1, 0.1, 1.0],
+            [2.0, 0.3, 1.2],
+            [0.0, 1.1, 1.3],
+            [1.1, 1.2, 1.1],
+            [2.0, 1.0, 1.0],
+            [0.2, 2.2, 1.2],
+            [1.2, 2.0, 1.0],
+            [2.0, 2.0, 1.1],
+            [0.0, 0.0, 2.5],
+            [1.1, 0.3, 2.0],
+            [2.0, 0.0, 2.1],
+            [0.1, 1.1, 2.0],
+            [1.1, 1.1, 2.2],
+            [2.0, 1.1, 2.0],
+            [0.0, 2.1, 2.3],
+            [1.3, 2.1, 2.0],
+            [2.0, 2.0, 2.0],
         ]
         vol = Volume(basis1, basis2, basis3, controlpoints)
 
         # Test integration in u-direction
-        integral_u = vol.get_antiderivative_volume('u')
+        integral_u = vol.get_antiderivative_volume("u")
 
         # Check: order increased by 1 in u-direction
         self.assertEqual(integral_u.order(0), vol.order(0) + 1)
@@ -822,7 +838,7 @@ class TestVolume(unittest.TestCase):
         self.assertAlmostEqual(error, 0.0, places=10)
 
         # Test 2: Integration in v-direction
-        integral_v = vol.get_antiderivative_volume('v')
+        integral_v = vol.get_antiderivative_volume("v")
 
         # Check: order increased by 1 in v-direction
         self.assertEqual(integral_v.order(0), vol.order(0))
@@ -843,7 +859,7 @@ class TestVolume(unittest.TestCase):
         self.assertAlmostEqual(error, 0.0, places=10)
 
         # Test 3: Integration in w-direction
-        integral_w = vol.get_antiderivative_volume('w')
+        integral_w = vol.get_antiderivative_volume("w")
 
         # Check: order increased by 1 in w-direction
         self.assertEqual(integral_w.order(0), vol.order(0))
@@ -865,7 +881,7 @@ class TestVolume(unittest.TestCase):
 
         # Test 4: Integration with custom constant
         constant = np.array([1.0, 2.0, 3.0])
-        integral_with_const = vol.get_antiderivative_volume('u', constant=constant)
+        integral_with_const = vol.get_antiderivative_volume("u", constant=constant)
 
         # Check: integral at start equals the constant
         u_start = integral_with_const.start(0)
@@ -887,8 +903,8 @@ class TestVolume(unittest.TestCase):
         self.assertAlmostEqual(error, 0.0, places=9)
 
         # Test 5: Verify double integration (integrate in u, then in v)
-        integral_u = vol.get_antiderivative_volume('u')
-        integral_uv = integral_u.get_antiderivative_volume('v')
+        integral_u = vol.get_antiderivative_volume("u")
+        integral_uv = integral_u.get_antiderivative_volume("v")
 
         # Check: orders increased in both directions
         self.assertEqual(integral_uv.order(0), vol.order(0) + 1)
@@ -905,7 +921,7 @@ class TestVolume(unittest.TestCase):
         self.assertAlmostEqual(error, 0.0, places=9)
 
         # Test 6: Verify triple integration (u, then v, then w)
-        integral_uvw = integral_uv.get_antiderivative_volume('w')
+        integral_uvw = integral_uv.get_antiderivative_volume("w")
 
         # Check: orders increased in all directions
         self.assertEqual(integral_uvw.order(0), vol.order(0) + 1)
@@ -920,33 +936,39 @@ class TestVolume(unittest.TestCase):
 
         # Test 7: Rational volumes should raise an error
         cp_rational = [
-            [0, 0, 0, 1], [1, 0, 0, 1], [0, 1, 0, 1], [1, 1, 0, 1],
-            [0, 0, 1, 1], [1, 0, 1, 1], [0, 1, 1, 1], [1, 1, 1, 1]
+            [0, 0, 0, 1],
+            [1, 0, 0, 1],
+            [0, 1, 0, 1],
+            [1, 1, 0, 1],
+            [0, 0, 1, 1],
+            [1, 0, 1, 1],
+            [0, 1, 1, 1],
+            [1, 1, 1, 1],
         ]
-        basis = BSplineBasis(2, [0,0,1,1])
+        basis = BSplineBasis(2, [0, 0, 1, 1])
         vol_rational = Volume(basis, basis, basis, cp_rational, rational=True)
 
         with self.assertRaises(RuntimeError):
-            vol_rational.get_antiderivative_volume('u')
+            vol_rational.get_antiderivative_volume("u")
 
         # Test 8: Direction parameter variants (numeric and string)
         integral_0 = vol.get_antiderivative_volume(0)
-        integral_u = vol.get_antiderivative_volume('u')
+        integral_u = vol.get_antiderivative_volume("u")
         self.assertTrue(np.allclose(integral_0.controlpoints, integral_u.controlpoints))
 
         integral_1 = vol.get_antiderivative_volume(1)
-        integral_v = vol.get_antiderivative_volume('v')
+        integral_v = vol.get_antiderivative_volume("v")
         self.assertTrue(np.allclose(integral_1.controlpoints, integral_v.controlpoints))
 
         integral_2 = vol.get_antiderivative_volume(2)
-        integral_w = vol.get_antiderivative_volume('w')
+        integral_w = vol.get_antiderivative_volume("w")
         self.assertTrue(np.allclose(integral_2.controlpoints, integral_w.controlpoints))
 
         # Test 9: Invalid direction should raise an error
         with self.assertRaises(ValueError):
             vol.get_antiderivative_volume(3)
         with self.assertRaises(ValueError):
-            vol.get_antiderivative_volume('x')
+            vol.get_antiderivative_volume("x")
 
 
 if __name__ == "__main__":

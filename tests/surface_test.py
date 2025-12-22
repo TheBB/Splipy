@@ -855,7 +855,7 @@ class TestSurface(unittest.TestCase):
         surf = Surface(basis1, basis2, controlpoints)
 
         # Test integration in u-direction
-        integral_u = surf.get_antiderivative_surface('u')
+        integral_u = surf.get_antiderivative_surface("u")
 
         # Check: order increased by 1 in u-direction
         self.assertEqual(integral_u.order(0), surf.order(0) + 1)
@@ -876,7 +876,7 @@ class TestSurface(unittest.TestCase):
         self.assertAlmostEqual(error, 0.0, places=10)
 
         # Test 2: Integration in v-direction
-        integral_v = surf.get_antiderivative_surface('v')
+        integral_v = surf.get_antiderivative_surface("v")
 
         # Check: order increased by 1 in v-direction
         self.assertEqual(integral_v.order(0), surf.order(0))
@@ -899,14 +899,20 @@ class TestSurface(unittest.TestCase):
         basis2 = BSplineBasis(3, [0, 0, 0, 1, 1, 1])
         # Create a more complex surface
         cp = [
-            [0, 0, 0], [1.5, 0, 0.5], [2, 0, 0],
-            [0, 1, 0.3], [1, 0.5, 1], [2, 1, 0.3],
-            [0, 2, 0], [1, 2, 0.5], [2.2, 2, 0]
+            [0, 0, 0],
+            [1.5, 0, 0.5],
+            [2, 0, 0],
+            [0, 1, 0.3],
+            [1, 0.5, 1],
+            [2, 1, 0.3],
+            [0, 2, 0],
+            [1, 2, 0.5],
+            [2.2, 2, 0],
         ]
         surf = Surface(basis1, basis2, cp)
 
         constant = np.array([1.0, 2.0, 3.0])
-        integral_with_const = surf.get_antiderivative_surface('u', constant=constant)
+        integral_with_const = surf.get_antiderivative_surface("u", constant=constant)
 
         # Check: integral at start equals the constant
         u_start = integral_with_const.start(0)
@@ -930,9 +936,9 @@ class TestSurface(unittest.TestCase):
         surf = Surface(basis, basis, cp)
 
         # First integrate in u
-        integral_u = surf.get_antiderivative_surface('u')
+        integral_u = surf.get_antiderivative_surface("u")
         # Then integrate in v
-        integral_uv = integral_u.get_antiderivative_surface('v')
+        integral_uv = integral_u.get_antiderivative_surface("v")
 
         # Check: orders increased in both directions
         self.assertEqual(integral_uv.order(0), surf.order(0) + 1)
@@ -951,13 +957,13 @@ class TestSurface(unittest.TestCase):
         surf_rational = Surface(basis, basis, cp_rational, rational=True)
 
         with self.assertRaises(RuntimeError):
-            surf_rational.get_antiderivative_surface('u')
+            surf_rational.get_antiderivative_surface("u")
 
         # Test 6: 2D surface (z coordinate implicit)
         cp_2d = [[0, 0], [1, 0], [0, 1], [1, 1]]
         surf_2d = Surface(basis, basis, cp_2d)
 
-        integral_2d = surf_2d.get_antiderivative_surface('u')
+        integral_2d = surf_2d.get_antiderivative_surface("u")
 
         # Check: derivative of integral equals original
         u = np.linspace(0, 1, 11)

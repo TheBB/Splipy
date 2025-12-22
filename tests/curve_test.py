@@ -688,7 +688,7 @@ class TestCurve(unittest.TestCase):
 
         # Compare recovered integral to analytical values on a grid
         t = np.linspace(0, 1, 21)
-        analytical = np.array([[tt ** 3 + 2 * tt, 2 * tt * (tt - 2/3 * tt * tt)] for tt in t])
+        analytical = np.array([[tt**3 + 2 * tt, 2 * tt * (tt - 2 / 3 * tt * tt)] for tt in t])
         numerical = integral(t)
         error = np.linalg.norm(numerical - analytical)
         self.assertAlmostEqual(error, 0.0, places=10)
@@ -767,4 +767,3 @@ class TestCurve(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

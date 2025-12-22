@@ -6,7 +6,7 @@ import numpy as np
 
 from .basis import BSplineBasis
 from .splineobject import SplineObject
-from .utils import check_direction, ensure_listlike, sections
+from .utils import ensure_listlike, sections
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -200,19 +200,17 @@ class Volume(SplineObject):
                     result += str(self.controlpoints[i, j, k, :]) + "\n"
         return result
 
-    def get_antiderivative_volume(
-        self, direction: int | str, constant: ArrayLike | None = None
-    ) -> Volume:
+    def get_antiderivative_volume(self, direction: int | str, constant: ArrayLike | None = None) -> Volume:
         """Compute the antiderivative (integral) of the volume in a given parametric direction.
 
         The antiderivative is computed by inverting the derivative operator on
-        the spline space in the specified parametric direction. The result is a 
-        new volume of order p+1 in that direction (where p is the current order) 
+        the spline space in the specified parametric direction. The result is a
+        new volume of order p+1 in that direction (where p is the current order)
         whose derivative in that direction equals this volume.
 
-        The antiderivative is only unique up to an additive constant volume. By 
-        default, the constant is chosen such that the antiderivative evaluates to 
-        zero at the start of the parametric domain in the given direction. You can 
+        The antiderivative is only unique up to an additive constant volume. By
+        default, the constant is chosen such that the antiderivative evaluates to
+        zero at the start of the parametric domain in the given direction. You can
         specify a different constant to shift the result.
 
         :param direction: The parametric direction to integrate in (0, 1, or 2; or 'u', 'v', 'w')

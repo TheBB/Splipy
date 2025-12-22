@@ -369,13 +369,13 @@ class SplineObject:
         """Compute the antiderivative (integral) of the spline object in a given parametric direction.
 
         The antiderivative is computed by inverting the derivative operator on
-        the spline space in the specified parametric direction. The result is a 
-        new spline object of order p+1 in that direction (where p is the current 
+        the spline space in the specified parametric direction. The result is a
+        new spline object of order p+1 in that direction (where p is the current
         order) whose derivative in that direction equals this spline object.
 
         The antiderivative is only unique up to an additive constant. By default,
         the constant is chosen such that the antiderivative evaluates to zero at
-        the start of the parametric domain in the given direction. You can specify 
+        the start of the parametric domain in the given direction. You can specify
         a different constant to shift the result.
 
         If `direction` is not given, this function returns a list of antiderivatives
@@ -444,21 +444,21 @@ class SplineObject:
         # Create index slices for accessing control points along direction d
         for i in range(n):
             delta_knot = old_knots[i + p] - old_knots[i]
-            
+
             # Build index slices: [..., i, ...] and [..., i+1, ...]
             idx_current = [slice(None)] * self.pardim
             idx_next = [slice(None)] * self.pardim
             idx_current[d] = i
             idx_next[d] = i + 1
-            
+
             # Add last dimension for physical coordinates
             idx_current.append(slice(None))
             idx_next.append(slice(None))
-            
+
             # Compute cumulative sum (integral)
             new_controlpoints[tuple(idx_next)] = (
-                new_controlpoints[tuple(idx_current)] + 
-                (delta_knot / p) * self.controlpoints[tuple(idx_current)]
+                new_controlpoints[tuple(idx_current)]
+                + (delta_knot / p) * self.controlpoints[tuple(idx_current)]
             )
 
         # Apply the integration constant
