@@ -7,10 +7,10 @@
 
 from pathlib import Path
 from splipy.io import G2, STL
-import splipy.surface_factory as surfaces
+from splipy import surface_factory
 
 # create a NURBS torus
-torus = surfaces.torus(minor_r=1, major_r=4)
+torus = surface_factory.torus(minor_r=1, major_r=4)
 
 # Path to file directory
 path = Path(__file__).parent
