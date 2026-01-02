@@ -2,34 +2,42 @@ from __future__ import annotations
 
 from itertools import islice
 from pathlib import Path
+from typing import TYPE_CHECKING, Self, TextIO
 
 import numpy as np
 
 from splipy.basis import BSplineBasis
-from splipy.curve import Curve
 from splipy.splineobject import SplineObject
-from splipy.surface import Surface
-from splipy.volume import Volume
 
 from .master import MasterIO
 
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from types import TracebackType
+
+    from splipy.curve import Curve
+
 
 class SPL(MasterIO):
-    def __init__(self, filename):
+    fstream: TextIO
+    filename: str
+    trimming_curves: list[Curve]
+
+    def __init__(self, filename: str) -> None:
         if not filename.endswith(".spl"):
             filename += ".spl"
         self.filename = filename
         self.trimming_curves = []
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         self.fstream = Path(self.filename).open()
         return self
 
-    def lines(self):
+    def lines(self) -> Iterator[str]:
         for line in self.fstream:
             yield line.split("#", maxsplit=1)[0].strip()
 
-    def read(self):
+    def read(self) -> list[SplineObject]:
         lines = self.lines()
 
         version = next(lines).split()
@@ -51,16 +59,13 @@ class SPL(MasterIO):
         cpts = np.array([float(k) for k in islice(lines, totcoeffs * physdim)])
         cpts = cpts.reshape(physdim, *(ncoeffs[::-1])).transpose()
 
-        if pardim == 1:
-            patch = Curve(*bases, controlpoints=cpts, raw=True)
-        elif pardim == 2:
-            patch = Surface(*bases, controlpoints=cpts, raw=True)
-        elif pardim == 3:
-            patch = Volume(*bases, controlpoints=cpts, raw=True)
-        else:
-            patch = SplineObject(bases, controlpoints=cpts, raw=True)
+        obj = SplineObject.construct_subclass(bases, cpts, rational=False, raw=True)
+        return [obj]
 
-        return [patch]
-
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(
+        self,
+        exc_type: type[BaseException],
+        exc_value: BaseException,
+        traceback: TracebackType,
+    ) -> None:
         self.fstream.close()

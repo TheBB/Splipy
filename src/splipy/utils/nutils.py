@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
 __doc__ = "Implementation of convenience methods with respect to nutils integration."
 
 import numpy as np
@@ -8,8 +10,12 @@ from splipy.curve import Curve
 from splipy.surface import Surface
 from splipy.volume import Volume
 
+if TYPE_CHECKING:
+    from splipy.splineobject import SplineObject
+    from splipy.typing import FloatArray
 
-def controlpoints(spline):
+
+def controlpoints(spline: SplineObject) -> FloatArray:
     """Return controlpoints according to nutils ordering"""
     n = len(spline)
     dim = spline.dimension
@@ -22,7 +28,7 @@ def controlpoints(spline):
     raise RuntimeError("Non-spline argument detected")
 
 
-def multiplicities(spline):
+def multiplicities(spline: SplineObject) -> list[list[float]]:
     """Returns the multiplicity of the knots at all knot values as a 2D array for
     all parametric directions, for all knots"""
     return [
@@ -31,14 +37,14 @@ def multiplicities(spline):
     ]
 
 
-def degree(spline):
+def degree(spline: SplineObject) -> list[int]:
     """Returns polynomial degree (splipy order - 1) for all parametric directions"""
     return [p - 1 for p in spline.order()]
 
 
-def splipy_to_nutils(spline):
+def splipy_to_nutils(spline: SplineObject) -> Any:
     """Returns nutils domain and geometry object for spline mapping given by the argument"""
-    from nutils import function, mesh
+    from nutils import function, mesh  # type: ignore[import-untyped]
 
     domain, geom = mesh.rectilinear(spline.knots())
     cp = controlpoints(spline)

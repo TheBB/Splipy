@@ -4,29 +4,46 @@ import re
 import warnings
 from itertools import chain, product
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, Literal, Self, TextIO
 
 import cv2
 import h5py
 import numpy as np
+import numpy.typing as npt
 from scipy.spatial import Delaunay, QhullError
 from tqdm import tqdm
 
 from splipy import curve_factory, surface_factory, volume_factory
 from splipy.basis import BSplineBasis
-from splipy.utils import ensure_listlike_old
+from splipy.utils import ensure_listlike
 from splipy.volume import Volume
 
 from .g2 import G2
 from .master import MasterIO
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from types import TracebackType
 
-class Box:
-    def __init__(self, x):
+    from splipy.typing import FloatArray, IntArray
+
+
+class Box[T]:
+    x: T
+
+    def __init__(self, x: T) -> None:
         self.x = x
 
 
 class DiscontBoxMesh:
-    def __init__(self, n, coord, zcorn):
+    # These are numpy arrays of objects.
+    # We can't express that type. :-(
+    X: Any  # ndarray[list[point]]
+    plane_hull: Any  # ndarray[Delaunay]
+
+    Xz: FloatArray
+
+    def __init__(self, n: IntArray, coord: FloatArray, zcorn: FloatArray) -> None:
         nx, ny, nz = n
 
         X = np.empty(n + 1, dtype=object)
@@ -55,7 +72,7 @@ class DiscontBoxMesh:
         self.Xz = Xz
         self.n = n
 
-        def hull_or_none(x):
+        def hull_or_none(x: FloatArray) -> Delaunay | None:
             try:
                 return Delaunay(x)
             except QhullError:
@@ -77,7 +94,7 @@ class DiscontBoxMesh:
             dtype=object,
         )
 
-    def cell_at(self, x, guess=None):
+    def cell_at(self, x: FloatArray, guess: tuple[int, int, int] | None = None) -> tuple[int, int, int]:
         # First, find the 'tower' containing x
         check = -1
         last_i = last_j = 0
@@ -136,38 +153,55 @@ class DiscontBoxMesh:
         assert check >= 0
         return i, j, k
 
-    def get_c0_avg(self):
+    def get_c0_avg(self) -> FloatArray:
         """Compute best-approximation vertices for a continuous mesh by averaging the location of all
         corners that 'should' coincide.
         """
         return np.array([[[np.mean(k, axis=0) for k in j] for j in i] for i in self.X])
 
-    def get_discontinuous_all(self):
+    def get_discontinuous_all(self) -> list[FloatArray]:
         """Return a list of vertices suitable for a fully discontinuous mesh."""
         return list(chain.from_iterable(xs[::-1] for xs in self.X.T.flat))
 
-    def get_discontinuous_z(self):
+    def get_discontinuous_z(self) -> FloatArray:
         """Return a list of vertices suitable for a mixed continuity mesh."""
         return self.Xz
 
 
 class GRDECL(MasterIO):
-    def __init__(self, filename):
+    filename: str
+    attribute: dict[str, FloatArray | IntArray]
+    fstream: TextIO
+    line_number: int
+
+    n: IntArray
+    coord: FloatArray
+    zcorn: FloatArray
+
+    def __init__(self, filename: str) -> None:
         if not filename.endswith(".grdecl"):
             filename += ".grdecl"
         self.filename = filename
         self.attribute = {}
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         self.fstream = Path(self.filename).open()
         self.line_number = 0
         return self
 
-    def read_specgrid(self):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        self.fstream.close()
+
+    def read_specgrid(self) -> IntArray:
         args = next(self.fstream).strip().split()
         return np.array(args[:3], dtype=np.int32)
 
-    def read_coord(self):
+    def read_coord(self) -> FloatArray:
         nx, ny = self.n[:2]
         ans = np.zeros((nx + 1, ny + 1, 2, 3))
         for j, i in product(range(ny + 1), range(nx + 1)):
@@ -176,23 +210,23 @@ class GRDECL(MasterIO):
             ans[i, j, 1, :] = np.array(args[3:], dtype=np.float64)
         return ans
 
-    def read_zcorn(self):
+    def read_zcorn(self) -> FloatArray:
         ntot = np.prod(self.n) * 8
-        numbers = []
+        numbers: list[str] = []
         while len(numbers) < ntot:
             numbers += next(self.fstream).split()
         numbers = numbers[:ntot]  # strip away any '/' characters at the end of the line
         return np.reshape(np.array(numbers, dtype=np.float64), self.n * 2, order="F")
 
-    def cell_property(self, dtype=np.float64):
+    def cell_property[G: np.generic](self, dtype: type[G]) -> npt.NDArray[G]:
         ntot = np.prod(self.n)
-        numbers = []
+        numbers: list[str] = []
         while len(numbers) < ntot:
             numbers += next(self.fstream).split()
         numbers = numbers[:ntot]  # strip away any '/' characters at the end of the line
         return np.array(numbers, dtype=dtype)
 
-    def read(self):
+    def read(self) -> None:
         for line in self.fstream:
             line = line.strip().lower()
             if line == "specgrid":
@@ -215,8 +249,12 @@ class GRDECL(MasterIO):
                 "poissonratio25",
                 "pressure",
             }:
-                dtype = np.int32 if line in {"actnum", "satnum"} else np.float64
-                self.attribute[line] = self.cell_property(dtype)
+                if line in {"actnum", "satnum"}:
+                    self.attribute[line] = self.cell_property(np.int32)
+                else:
+                    self.attribute[line] = self.cell_property(np.float64)
+                # dtype = np.int32 if line in {"actnum", "satnum"} else np.float64
+                # self.attribute[line] = self.cell_property(dtype)
             elif line in {"grid", "/", ""} or line.startswith("--"):
                 pass
             elif not re.match("[0-9]", line[0]):
@@ -225,14 +263,13 @@ class GRDECL(MasterIO):
                     SyntaxWarning,
                     self.filename,
                     self.line_number,
-                    line=[],
                 )
             else:
                 pass  # silently skip large number blocks
 
         self.raw = DiscontBoxMesh(self.n, self.coord, self.zcorn)
 
-    def get_c0_mesh(self):
+    def get_c0_mesh(self) -> Volume:
         # Create the C0-mesh
         nx, ny, nz = self.n
         X = self.raw.get_c0_avg()
@@ -241,7 +278,7 @@ class GRDECL(MasterIO):
         b3 = BSplineBasis(2, [0] + [i / nz for i in range(nz + 1)] + [1])
         return volume_factory.interpolate(X, [b1, b2, b3])
 
-    def get_cm1_mesh(self):
+    def get_cm1_mesh(self) -> Volume:
         # Create the C^{-1} mesh
         nx, ny, nz = self.n
         Xm1 = self.raw.get_discontinuous_all()
@@ -250,7 +287,7 @@ class GRDECL(MasterIO):
         b3 = BSplineBasis(2, sorted(list(range(self.n[2] + 1)) * 2))
         return Volume(b1, b2, b3, Xm1)
 
-    def get_mixed_cont_mesh(self):
+    def get_mixed_cont_mesh(self) -> Volume:
         # Create mixed discontinuity mesh: C^0, C^0, C^{-1}
         nx, ny, nz = self.n
         Xz = self.raw.get_discontinuous_z()
@@ -259,15 +296,23 @@ class GRDECL(MasterIO):
         b3 = BSplineBasis(2, sorted(list(range(self.n[2] + 1)) * 2))
         return Volume(b1, b2, b3, Xz, raw=True)
 
-    def texture(self, p, ngeom, ntexture, method="full", irange=[None, None], jrange=[None, None]):
+    def texture(
+        self,
+        p: int | Sequence[int],
+        ngeom: int | Sequence[int],
+        ntexture: int | Sequence[int],
+        method: Literal["full", "z"] = "full",
+        irange: list[int | None] = [None, None],
+        jrange: list[int | None] = [None, None],
+    ) -> tuple[Volume, Any]:
         # Set the dimensions of geometry and texture map
         # ngeom    = np.floor(self.n / (p-1))
         # ntexture = np.floor(self.n * n)
         # ngeom    = ngeom.astype(np.int32)
         # ntexture = ntexture.astype(np.int32)
-        ngeom = ensure_listlike_old(ngeom, 3)
-        ntexture = ensure_listlike_old(ntexture, 3)
-        p = ensure_listlike_old(p, 3)
+        ngeom = ensure_listlike(ngeom, dups=3)
+        ntexture = ensure_listlike(ntexture, dups=3)
+        p = ensure_listlike(p, dups=3)
 
         # Create the geometry
         ngx, ngy, ngz = ngeom
@@ -280,18 +325,19 @@ class GRDECL(MasterIO):
 
         i = slice(irange[0], irange[1], None)
         j = slice(jrange[0], jrange[1], None)
-        # special case number of evaluation points for full domain
-        if irange[1] is None:
-            irange[1] = vol.shape[0]
-        if jrange[1] is None:
-            jrange[1] = vol.shape[1]
-        if irange[0] is None:
-            irange[0] = 0
-        if jrange[0] is None:
-            jrange[0] = 0
 
-        nu = np.diff(irange)
-        nv = np.diff(jrange)
+        # special case number of evaluation points for full domain
+        irange_c: list[int] = [
+            irange[0] if irange[0] is not None else 0,
+            irange[1] if irange[1] is not None else vol.shape[0],
+        ]
+        jrange_c: list[int] = [
+            jrange[0] if jrange[0] is not None else 0,
+            jrange[1] if jrange[1] is not None else vol.shape[1],
+        ]
+
+        nu = np.diff(irange_c)
+        nv = np.diff(jrange_c)
         nw = vol.shape[2]
 
         u = np.linspace(0, 1, nu)
@@ -299,18 +345,18 @@ class GRDECL(MasterIO):
         w = np.linspace(0, 1, nw)
 
         crvs = []
-        crvs.append(curve_factory.polygon(vol[i, jrange[0], 0, :].squeeze()))
-        crvs.append(curve_factory.polygon(vol[i, jrange[0], -1, :].squeeze()))
-        crvs.append(curve_factory.polygon(vol[i, jrange[1] - 1, 0, :].squeeze()))
-        crvs.append(curve_factory.polygon(vol[i, jrange[1] - 1, -1, :].squeeze()))
-        crvs.append(curve_factory.polygon(vol[irange[0], j, 0, :].squeeze()))
-        crvs.append(curve_factory.polygon(vol[irange[0], j, -1, :].squeeze()))
-        crvs.append(curve_factory.polygon(vol[irange[1] - 1, j, 0, :].squeeze()))
-        crvs.append(curve_factory.polygon(vol[irange[1] - 1, j, -1, :].squeeze()))
-        crvs.append(curve_factory.polygon(vol[irange[0], jrange[0], :, :].squeeze()))
-        crvs.append(curve_factory.polygon(vol[irange[0], jrange[1] - 1, :, :].squeeze()))
-        crvs.append(curve_factory.polygon(vol[irange[1] - 1, jrange[0], :, :].squeeze()))
-        crvs.append(curve_factory.polygon(vol[irange[1] - 1, jrange[1] - 1, :, :].squeeze()))
+        crvs.append(curve_factory.polygon(vol[i, jrange_c[0], 0, :].squeeze()))
+        crvs.append(curve_factory.polygon(vol[i, jrange_c[0], -1, :].squeeze()))
+        crvs.append(curve_factory.polygon(vol[i, jrange_c[1] - 1, 0, :].squeeze()))
+        crvs.append(curve_factory.polygon(vol[i, jrange_c[1] - 1, -1, :].squeeze()))
+        crvs.append(curve_factory.polygon(vol[irange_c[0], j, 0, :].squeeze()))
+        crvs.append(curve_factory.polygon(vol[irange_c[0], j, -1, :].squeeze()))
+        crvs.append(curve_factory.polygon(vol[irange_c[1] - 1, j, 0, :].squeeze()))
+        crvs.append(curve_factory.polygon(vol[irange_c[1] - 1, j, -1, :].squeeze()))
+        crvs.append(curve_factory.polygon(vol[irange_c[0], jrange_c[0], :, :].squeeze()))
+        crvs.append(curve_factory.polygon(vol[irange_c[0], jrange_c[1] - 1, :, :].squeeze()))
+        crvs.append(curve_factory.polygon(vol[irange_c[1] - 1, jrange_c[0], :, :].squeeze()))
+        crvs.append(curve_factory.polygon(vol[irange_c[1] - 1, jrange_c[1] - 1, :, :].squeeze()))
         #        with G2('curves.g2') as myfile:
         #            myfile.write(crvs)
         #        print('Written curve.g2')
@@ -318,10 +364,10 @@ class GRDECL(MasterIO):
         if method == "full":
             bottom = l2_fit(vol[i, j, 0, :].squeeze(), [b1, b2], [u, v])
             top = l2_fit(vol[i, j, -1, :].squeeze(), [b1, b2], [u, v])
-            left = l2_fit(vol[irange[0], j, :, :].squeeze(), [b2, b3], [v, w])
-            right = l2_fit(vol[irange[1] - 1, j, :, :].squeeze(), [b2, b3], [v, w])
-            front = l2_fit(vol[i, jrange[0], :, :].squeeze(), [b1, b3], [u, w])
-            back = l2_fit(vol[i, jrange[1] - 1, :, :].squeeze(), [b1, b3], [u, w])
+            left = l2_fit(vol[irange_c[0], j, :, :].squeeze(), [b2, b3], [v, w])
+            right = l2_fit(vol[irange_c[1] - 1, j, :, :].squeeze(), [b2, b3], [v, w])
+            front = l2_fit(vol[i, jrange_c[0], :, :].squeeze(), [b1, b3], [u, w])
+            back = l2_fit(vol[i, jrange_c[1] - 1, :, :].squeeze(), [b1, b3], [u, w])
             volume = volume_factory.edge_surfaces([left, right, front, back, bottom, top])
 
         elif method == "z":
@@ -336,18 +382,18 @@ class GRDECL(MasterIO):
         # Point-to-cell mapping
         # TODO(?): Optimize more
         eps = 1e-2
-        u = [np.linspace(eps, 1 - eps, n) for n in ntexture]
-        points = volume(*u).reshape(-1, 3)
+        us = [np.linspace(eps, 1 - eps, n) for n in ntexture]
+        points = volume(*us).reshape(-1, 3)
         cellids = np.zeros(points.shape[:-1], dtype=int)
-        nx, ny, nz = self.n
+        _, ny, nz = self.n
         for ptid, point in enumerate(tqdm(points, desc="Inverse mapping")):
-            i, j, k = self.raw.cell_at(point)  # , guess=cell)
-            cellid = i * ny * nz + j * nz + k
+            ii, jj, kk = self.raw.cell_at(point)  # , guess=cell)
+            cellid = ii * ny * nz + jj * nz + kk
             cellids[ptid] = cellid
 
         cellids = cellids.reshape(tuple(ntexture))
 
-        all_textures = {}
+        all_textures: dict[str, Any] = {}
         for name in self.attribute:
             data = self.attribute[name][cellids]
 
@@ -365,7 +411,15 @@ class GRDECL(MasterIO):
 
         return volume, all_textures
 
-    def to_ifem(self, p, ngeom, ntexture, method="full", irange=[None, None], jrange=[None, None]):
+    def to_ifem(
+        self,
+        p: int | Sequence[int],
+        ngeom: int | Sequence[int],
+        ntexture: int | Sequence[int],
+        method: Literal["full", "z"] = "full",
+        irange: list[int | None] = [None, None],
+        jrange: list[int | None] = [None, None],
+    ) -> None:
         translate = {
             "emodulus25": "stiffness",
             "kx": "permx",
@@ -405,6 +459,3 @@ class GRDECL(MasterIO):
 
         with G2("geom.g2") as myfile:
             myfile.write(vol)
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.fstream.close()

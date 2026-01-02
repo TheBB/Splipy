@@ -10,6 +10,7 @@ B = TypeVar("B", bound=npt.NBitBase)
 type ArrayLike = npt.ArrayLike
 type Scalar = SupportsFloat
 type FloatArray = npt.NDArray[np.floating]
+type IntArray = npt.NDArray[np.integer]
 type Direction = Literal["u", "v", "w", "U", "V", "W"] | int
 type SectionElement = Literal[-1, 0] | None
 type Section = tuple[SectionElement, ...]

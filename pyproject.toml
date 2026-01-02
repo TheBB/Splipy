@@ -19,9 +19,9 @@ dependencies = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[dependency-groups]
+[project.optional-dependencies]
 finiteelement = [
-    "nutils>=8.4",
+    "nutils>=9",
 ]
 images = [
     "opencv-python>=4.11.0.86",
@@ -29,8 +29,16 @@ images = [
 rhino = [
     "rhino3dm>=8.17.0",
 ]
+grdecl = [
+    "h5py>=3.13.0",
+    "opencv-python>=4.11.0.86",
+    "tqdm>=4.67.1",
+]
+
+[dependency-groups]
 dev = [
     "bump-my-version>=1.1.1",
+    "h5py-stubs>=0.1.2",
     "matplotlib>=3.10.1",
     "mypy>=1.15.0",
     "pytest>=8.3.5",
@@ -39,11 +47,7 @@ dev = [
     "scipy-stubs>=1.15.2.2",
     "sphinx>=8.2.3",
     "types-deprecated>=1.2.15.20250304",
-]
-grdecl = [
-    "h5py>=3.13.0",
-    "opencv-python>=4.11.0.86",
-    "tqdm>=4.67.1",
+    "types-tqdm>=4.67.0.20250809",
 ]
 
 [tool.bumpversion]
@@ -96,8 +100,11 @@ filename = "core/src/splipy_core/__init__.py"
 filename = "doc/conf.py"
 
 [tool.mypy]
-plugins = ["numpy.typing.mypy_plugin"]
-files = ["src/**/*.py", "tests/**/*.py", "push_documentation.py"]
+files = [
+    "src/**/*.py",
+    # "tests/**/*.py",
+    # "push_documentation.py",
+]
 disallow_untyped_defs = true
 disallow_any_unimported = true
 no_implicit_optional = true

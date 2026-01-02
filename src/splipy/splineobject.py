@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import copy
 from bisect import bisect_left
-from collections.abc import Callable, Sequence, Sized
+from collections.abc import Callable, Iterator, Sequence, Sized
 from itertools import product
 from operator import attrgetter, methodcaller
 from typing import TYPE_CHECKING, ClassVar, Literal, Self, SupportsIndex, Unpack, cast, overload
@@ -66,12 +66,15 @@ class SplineObject:
 
     @staticmethod
     def construct_subclass(
-        bases: Sequence[BSplineBasis], controlpoints: FloatArray, rational: bool
+        bases: Sequence[BSplineBasis],
+        controlpoints: ArrayLike,
+        rational: bool,
+        raw: bool = True,
     ) -> SplineObject:
         for subcls in SplineObject.__subclasses__():
             if subcls._intended_pardim == len(bases):
-                return subcls(*bases, controlpoints, rational=rational, raw=True)  # type: ignore
-        return SplineObject(bases, controlpoints, rational, raw=True)
+                return subcls(*bases, controlpoints, rational=rational, raw=raw)  # type: ignore
+        return SplineObject(bases, controlpoints, rational, raw=raw)
 
     @classmethod
     def construct_self(cls, bases: Sequence[BSplineBasis], controlpoints: FloatArray, rational: bool) -> Self:
@@ -1558,6 +1561,10 @@ class SplineObject:
             raise IndexError
 
         return unraveled
+
+    def __iter__(self) -> Iterator[FloatArray]:
+        for i in range(len(self)):
+            yield self[i]
 
     def __getitem__(self, i: SupportsIndex | slice | tuple[SupportsIndex | slice, ...]) -> FloatArray:
         """Get the control point at a given index.

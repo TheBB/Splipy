@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter, OrderedDict, namedtuple
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from itertools import chain, islice, permutations, product
 from operator import itemgetter
 from pathlib import Path
@@ -904,6 +904,10 @@ class SplineModel:
 
     def __getitem__(self, obj):
         return self.catalogue[obj]
+
+    def objects(self) -> Iterator[SplineObject]:
+        for node in self.catalogue.top_nodes():
+            yield node.obj
 
     def boundary(self, name=None):
         for node in self.catalogue.nodes(self.pardim - 1):

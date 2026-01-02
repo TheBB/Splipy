@@ -1,13 +1,20 @@
 from __future__ import annotations
 
 from math import pi
+from typing import TYPE_CHECKING, Never
 
 import numpy as np
 from scipy.spatial import ConvexHull
 
 from . import state
 from .surface import Surface
-from .utils import sections
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from splipy.basis import BSplineBasis
+    from splipy.curve import Curve
+    from splipy.typing import ArrayLike
 
 __all__ = ["TrimmedSurface"]
 
@@ -20,7 +27,15 @@ class TrimmedSurface(Surface):
 
     _intended_pardim = 2
 
-    def __init__(self, basis1=None, basis2=None, controlpoints=None, rational=False, loops=None, **kwargs):
+    def __init__(
+        self,
+        basis1: BSplineBasis | None = None,
+        basis2: BSplineBasis | None = None,
+        controlpoints: ArrayLike | None = None,
+        rational: bool = False,
+        loops: Sequence[Sequence[Curve]] = [],
+        raw: bool = False,
+    ):
         """Construct a surface with the given basis and control points.
 
         The default is to create a linear one-element mapping from and to the
@@ -36,7 +51,7 @@ class TrimmedSurface(Surface):
         :raises RuntimeError: If the loops are not contained to dimension 2 (parametric
             space), or if they are not closed, or if they are not looping properly
         """
-        super(Surface, self).__init__([basis1, basis2], controlpoints, rational, **kwargs)
+        super().__init__(basis1, basis2, controlpoints, rational=rational, raw=raw)
         # make sure to make deep copies of the loops so nothing bad happens
         self.boundaries = [[l.clone() for l in one_loop] for one_loop in loops]
 
@@ -58,15 +73,7 @@ class TrimmedSurface(Surface):
 
         self.__compute_convex_hulls()
 
-    def edges(self):
-        """Return the four edge curves in (parametric) order: umin, umax, vmin, vmax
-
-        :return: Edge curves
-        :rtype: (Curve)
-        """
-        return tuple(self.section(*args) for args in sections(2, 1))
-
-    def __compute_convex_hulls(self):
+    def __compute_convex_hulls(self) -> None:
         self.rotation = []
         self.convexhull = []
         for loop in self.boundaries:
@@ -97,10 +104,9 @@ class TrimmedSurface(Surface):
             self.convexhull.append(x[hull.vertices, :])
             # print(self.convexhull[-1])
 
-    def is_contained(self, u, v):
+    def is_contained(self, u: Never, v: Never) -> Never:
         """Returns a boolean mask if the input points are inside (True) or
         outside (False) of the trimming curves."""
-
         raise NotImplementedError("This has yet to be implemented")
 
         # do a quick test based on convex hull
@@ -111,16 +117,16 @@ class TrimmedSurface(Surface):
 
         return False
 
-    def __is_contained_fine(self, u, v):
+    def __is_contained_fine(self, u: Never, v: Never) -> Never:
         """Does a fine test based on parametric curve representation to see if
         points are inside or outside trimming domain. Trimming curves are high-
         polynomial representations, so figuring this out means newton iteration
         to locate nearest point on curve and decide if this is inside or outside
         domain."""
-        return False
+        raise NotImplementedError("This has yet to be implemented")
 
-    def __is_contained_coarse(self, u, v):
+    def __is_contained_coarse(self, u: Never, v: Never) -> Never:
         """Does a course test based on control-grid to see if points are inside or
         outside domain. Inside control-grid means inside a trimming loop and outputs
         False. Outside the *convex hull* of a control-grid means"""
-        return False
+        raise NotImplementedError("This has yet to be implemented")
