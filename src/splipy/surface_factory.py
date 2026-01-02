@@ -679,6 +679,9 @@ def thicken(curve: Curve, amount: Scalar | Callable[..., float]) -> Surface:
         return edge_curves(right, left)
 
     # dimension=3, we will create a surrounding tube
+    # callable amount is not supported
+    if callable(amount):
+        raise TypeError("Callable amount not supported for three-dimensional curves")
     return sweep(curve, curve_factory.circle(r=amount))
 
 
@@ -764,9 +767,6 @@ def loft(*in_curves: Curve | Sequence[Curve]) -> Surface:
     # ensure all centers have the same dimension (typically some are 2D points and others are 3D points)
     max_dim = max(c.dimension for c in curves)
     x = [np.pad(xi, (0, max_dim - len(xi)), mode="constant") for xi in x]
-    dist = [0]
-    for x1, x0 in zip(x[1:], x[:-1]):
-        dist.append(dist[-1] + np.linalg.norm(x1 - x0))
 
     # clone input, so we don't change those references
     # make sure everything has the same dimension since we need to compute length
@@ -774,6 +774,8 @@ def loft(*in_curves: Curve | Sequence[Curve]) -> Surface:
     if len(curves) == 2:
         return edge_curves(curves)
     if len(curves) == 3:
+        dist = curve_length_parametrization(x)
+
         # can't do cubic spline interpolation, so we'll do quadratic
         basis2 = BSplineBasis(3)
     else:
@@ -801,12 +803,12 @@ def loft(*in_curves: Curve | Sequence[Curve]) -> Surface:
     Nv_inv = np.linalg.inv(Nv)
 
     # compute interpolation points in physical space
-    x = np.zeros((m, n, curves[0][0].size))
+    cp: FloatArray = np.zeros((m, n, curves[0][0].size))
     for i in range(n):
-        x[:, i, :] = Nu @ curves[i].controlpoints
+        cp[:, i, :] = Nu @ curves[i].controlpoints
 
     # solve interpolation problem
-    cp = np.tensordot(Nv_inv, x, axes=(1, 1))
+    cp = np.tensordot(Nv_inv, cp, axes=(1, 1))
     cp = np.tensordot(Nu_inv, cp, axes=(1, 1))
 
     # re-order controlpoints so they match up with Surface constructor
