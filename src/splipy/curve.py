@@ -12,7 +12,7 @@ from .splineobject import SplineObject
 from .utils import ensure_listlike, is_singleton
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from .typing import ArrayLike, Direction, FloatArray, Scalar
 
@@ -494,7 +494,7 @@ class Curve(SplineObject):
                 break
         return self(t), t
 
-    def error(self, target: Curve) -> tuple[FloatArray, float]:
+    def error(self, target: Curve | Callable[[FloatArray], FloatArray]) -> tuple[FloatArray, float]:
         """Computes the L2 (squared and per knot span) and max error between
         this curve and a target curve
 

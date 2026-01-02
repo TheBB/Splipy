@@ -9,7 +9,16 @@ import numpy as np
 
 if TYPE_CHECKING:
     from splipy.splineobject import SplineObject
-    from splipy.typing import Direction, FloatArray, Section, SectionElement, SectionKwargs
+    from splipy.typing import (
+        Direction,
+        FloatArray,
+        IntArray,
+        Point,
+        Points,
+        Section,
+        SectionElement,
+        SectionKwargs,
+    )
 
 
 def knot_vector(
@@ -38,6 +47,15 @@ def knot_vector(
 
     count = interior_reps * (num_intervals - 1) + endpoint_reps * 2
     return np.fromiter(iter(), dtype=np.float64, count=count)
+
+
+def with_repeated_knots(
+    knots: FloatArray | IntArray,
+    reps: int = 1,
+) -> FloatArray:
+    if reps == 1:
+        return knots
+    return np.pad(knots, pad_width=reps - 1, mode="edge")
 
 
 def is_right_hand(patch, tol=1e-3):
@@ -185,6 +203,15 @@ def ensure_listlike_old(x, dups=1):
         return [x] * dups
     except IndexError:
         return []
+
+
+def normalize_points(*points: Point | Points) -> FloatArray:
+    """Utility function for functions that accept a single sequence of points or
+    multiple points as parameters.
+    """
+    if len(points) == 1:
+        return np.asarray(points[0])
+    return np.asarray(points)
 
 
 def rotate_local_x_axis(xaxis=(1, 0, 0), normal=(0, 0, 1)):

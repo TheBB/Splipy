@@ -23,6 +23,8 @@ from .utils import (
 )
 
 if TYPE_CHECKING:
+    from splipy.typing import ControlPoints, Point
+
     from .typing import ArrayLike, Direction, FloatArray, Scalar, SectionElement, SectionKwargs
 
 __all__ = ["SplineObject"]
@@ -67,7 +69,7 @@ class SplineObject:
     @staticmethod
     def construct_subclass(
         bases: Sequence[BSplineBasis],
-        controlpoints: ArrayLike,
+        controlpoints: ControlPoints,
         rational: bool,
         raw: bool = True,
     ) -> SplineObject:
@@ -85,7 +87,7 @@ class SplineObject:
     def __init__(
         self,
         bases: Sequence[BSplineBasis | None],
-        controlpoints: ArrayLike | None = None,
+        controlpoints: ControlPoints | None = None,
         rational: bool = False,
         raw: bool = False,
     ) -> None:
@@ -123,7 +125,7 @@ class SplineObject:
 
             self.controlpoints = cps
         else:
-            self.controlpoints = np.array(controlpoints, dtype=np.float64)
+            self.controlpoints = np.asarray(controlpoints, dtype=np.float64)
 
         self.dimension = self.controlpoints.shape[-1] - rational
         self.rational = rational
@@ -368,7 +370,7 @@ class SplineObject:
 
     def get_antiderivative_spline(
         self, direction: Direction | None = None, constant: ArrayLike | None = None
-    ) -> SplineObject:
+    ) -> SplineObject | list[SplineObject]:
         """Compute the antiderivative (integral) of the spline object in a given parametric direction.
 
         The antiderivative is computed by inverting the derivative operator on
@@ -1086,12 +1088,12 @@ class SplineObject:
         return self
 
     @overload
-    def scale(self, arg: ArrayLike, /) -> Self: ...
+    def scale(self, arg: Point, /) -> Self: ...
 
     @overload
     def scale(self, arg: Scalar, *args: Scalar) -> Self: ...
 
-    def scale(self, arg: ArrayLike | Scalar, *args: Scalar) -> Self:
+    def scale(self, arg: Point | Scalar, *args: Scalar) -> Self:
         """Scale, or magnify the object by a given amount.
 
         In case of one input argument, the scaling is uniform.
@@ -1621,46 +1623,46 @@ class SplineObject:
         """The dimensions of the control point array."""
         return self.controlpoints.shape[:-1]
 
-    def __iadd__(self, x: ArrayLike) -> Self:
+    def __iadd__(self, x: Point) -> Self:
         self.translate(x)
         return self
 
-    def __isub__(self, x: ArrayLike) -> Self:
+    def __isub__(self, x: Point) -> Self:
         self.translate(-np.asarray(x, dtype=np.float64))  # can't do -x if x is a list, so we rewrap it here
         return self
 
-    def __imul__(self, x: ArrayLike | Scalar) -> Self:
+    def __imul__(self, x: Point | Scalar) -> Self:
         self.scale(x)
         return self
 
-    def __itruediv__(self, x: ArrayLike | Scalar) -> Self:
+    def __itruediv__(self, x: Point | Scalar) -> Self:
         self.scale(1.0 / np.asarray(x, dtype=np.float64))
         return self
 
     __ifloordiv__ = __itruediv__  # integer division (should not distinguish)
 
-    def __add__(self, x: ArrayLike) -> Self:
+    def __add__(self, x: Point) -> Self:
         new_obj = copy.deepcopy(self)
         new_obj += x
         return new_obj
 
-    def __radd__(self, x: ArrayLike) -> Self:
+    def __radd__(self, x: Point) -> Self:
         return self + x
 
-    def __sub__(self, x: ArrayLike) -> Self:
+    def __sub__(self, x: Point) -> Self:
         new_obj = copy.deepcopy(self)
         new_obj -= x
         return new_obj
 
-    def __mul__(self, x: ArrayLike | Scalar) -> Self:
+    def __mul__(self, x: Point | Scalar) -> Self:
         new_obj = copy.deepcopy(self)
         new_obj *= x
         return new_obj
 
-    def __rmul__(self, x: ArrayLike | Scalar) -> Self:
+    def __rmul__(self, x: Point | Scalar) -> Self:
         return self * x
 
-    def __truediv__(self, x: ArrayLike | Scalar) -> Self:
+    def __truediv__(self, x: Point | Scalar) -> Self:
         new_obj = copy.deepcopy(self)
         new_obj /= x
         return new_obj

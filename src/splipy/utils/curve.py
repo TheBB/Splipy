@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from itertools import repeat
+
 __doc__ = "Implementation of various curve utilities"
 
 import numpy as np
 
 
-def curve_length_parametrization(pts, normalize=False):
+def curve_length_parametrization(pts, normalize=False, reps=1):
     """Calculate knots corresponding to a curvelength parametrization of a set of
     points.
 
@@ -14,9 +16,11 @@ def curve_length_parametrization(pts, normalize=False):
     :return: The parametrization
     :rtype: [float]
     """
-    knots = [0.0]
+    knots = [0.0] * reps
     for i in range(1, len(pts)):
         knots.append(knots[-1] + np.linalg.norm(pts[i] - pts[i - 1]))
+
+    knots.extend(repeat(knots[-1], reps - 1))
 
     if normalize:
         length = knots[-1]

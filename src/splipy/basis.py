@@ -15,7 +15,9 @@ from . import state
 from .utils import ensure_listlike_old
 
 if TYPE_CHECKING:
-    from .typing import ArrayLike, FloatArray, Scalar
+    from splipy.typing import Knots
+
+    from .typing import FloatArray, Scalar
 
 __all__ = ["BSplineBasis"]
 
@@ -41,7 +43,7 @@ class BSplineBasis:
     def __init__(
         self,
         order: int = 2,
-        knots: ArrayLike | None = None,
+        knots: Knots | None = None,
         periodic: int = -1,
     ) -> None:
         """Construct a B-Spline basis with a given order and knot vector.
@@ -151,7 +153,7 @@ class BSplineBasis:
     @overload
     def evaluate(
         self,
-        t: ArrayLike | Scalar,
+        t: Knots | Scalar,
         d: int = 0,
         from_right: bool = ...,
     ) -> npt.NDArray[np.double]: ...
@@ -159,7 +161,7 @@ class BSplineBasis:
     @overload
     def evaluate(
         self,
-        t: ArrayLike | Scalar,
+        t: Knots | Scalar,
         d: int = 0,
         from_right: bool = ...,
         sparse: Literal[False] = ...,
@@ -168,7 +170,7 @@ class BSplineBasis:
     @overload
     def evaluate(
         self,
-        t: ArrayLike | Scalar,
+        t: Knots | Scalar,
         d: int = 0,
         from_right: bool = ...,
         sparse: Literal[True] = ...,
@@ -176,7 +178,7 @@ class BSplineBasis:
 
     def evaluate(
         self,
-        t: ArrayLike | Scalar,
+        t: Knots | Scalar,
         d: int = 0,
         from_right: bool = True,
         sparse: bool = False,
