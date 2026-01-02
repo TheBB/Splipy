@@ -371,4 +371,50 @@ class Surface(SplineObject):
                 result += str(self.controlpoints[i, j, :]) + "\n"
         return result
 
+    def get_antiderivative_surface(self, direction: Direction, constant: ArrayLike | None = None) -> Surface:
+        """Compute the antiderivative (integral) of the surface in a given parametric direction.
+
+        The antiderivative is computed by inverting the derivative operator on
+        the spline space in the specified parametric direction. The result is a
+        new surface of order p+1 in that direction (where p is the current order)
+        whose derivative in that direction equals this surface.
+
+        The antiderivative is only unique up to an additive constant surface. By
+        default, the constant is chosen such that the antiderivative evaluates to
+        zero at the start of the parametric domain in the given direction. You can
+        specify a different constant to shift the result.
+
+        :param direction: The parametric direction to integrate in (0 or 'u' for first,
+            1 or 'v' for second direction)
+        :type direction: int or str
+        :param array-like constant: Optional constant vector to add to the result.
+            If not provided, defaults to zero (antiderivative is zero at parameter start).
+            Must have the same dimension as the surface's physical space.
+        :type constant: array-like or None
+        :return: A new surface whose derivative in the given direction equals self
+        :rtype: Surface
+        :raises RuntimeError: If the surface is rational (not supported)
+
+        Examples:
+
+        .. code:: python
+
+            import splipy as sp
+            import numpy as np
+
+            # Create a simple bilinear surface
+            surf = sp.surface_factory.square()
+
+            # Compute antiderivative in u-direction
+            integral_u = surf.get_antiderivative_surface('u')
+
+            # The derivative of integral should equal the original surface
+            u = np.linspace(0, 1, 11)
+            v = np.linspace(0, 1, 11)
+            diff = np.linalg.norm(integral_u.derivative(u, v, d=(1,0)) - surf(u, v))
+            print(f"Error: {diff}")  # Should be near machine precision
+
+        """
+        return cast("Surface", super().get_antiderivative_spline(direction, constant))
+
     get_derivative_surface = SplineObject.get_derivative_spline

@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
     from .curve import Curve
     from .surface import Surface
-    from .typing import ArrayLike, FloatArray
+    from .typing import ArrayLike, Direction, FloatArray
 
 __all__ = ["Volume"]
 
@@ -199,5 +199,51 @@ class Volume(SplineObject):
                 for i in range(n1):
                     result += str(self.controlpoints[i, j, k, :]) + "\n"
         return result
+
+    def get_antiderivative_volume(self, direction: Direction, constant: ArrayLike | None = None) -> Volume:
+        """Compute the antiderivative (integral) of the volume in a given parametric direction.
+
+        The antiderivative is computed by inverting the derivative operator on
+        the spline space in the specified parametric direction. The result is a
+        new volume of order p+1 in that direction (where p is the current order)
+        whose derivative in that direction equals this volume.
+
+        The antiderivative is only unique up to an additive constant volume. By
+        default, the constant is chosen such that the antiderivative evaluates to
+        zero at the start of the parametric domain in the given direction. You can
+        specify a different constant to shift the result.
+
+        :param direction: The parametric direction to integrate in (0, 1, or 2; or 'u', 'v', 'w')
+        :type direction: int or str
+        :param array-like constant: Optional constant vector to add to the result.
+            If not provided, defaults to zero (antiderivative is zero at parameter start).
+            Must have the same dimension as the volume's physical space.
+        :type constant: array-like or None
+        :return: A new volume whose derivative in the given direction equals self
+        :rtype: Volume
+        :raises RuntimeError: If the volume is rational (not supported)
+
+        Examples:
+
+        .. code:: python
+
+            import splipy as sp
+            import numpy as np
+
+            # Create a simple trilinear volume
+            vol = sp.volume_factory.cube()
+
+            # Compute antiderivative in u-direction
+            integral_u = vol.get_antiderivative_volume('u')
+
+            # The derivative of integral should equal the original volume
+            u = np.linspace(0, 1, 11)
+            v = np.linspace(0, 1, 11)
+            w = np.linspace(0, 1, 11)
+            diff = np.linalg.norm(integral_u.derivative(u, v, w, d=(1,0,0)) - vol(u, v, w))
+            print(f"Error: {diff}")  # Should be near machine precision
+
+        """
+        return cast("Volume", super().get_antiderivative_spline(direction, constant))
 
     get_derivative_volume = SplineObject.get_derivative_spline

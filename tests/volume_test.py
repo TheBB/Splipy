@@ -771,6 +771,205 @@ class TestVolume(unittest.TestCase):
         self.assertTrue(np.allclose(v2.controlpoints, v3.controlpoints))
         self.assertTrue(np.allclose(v.controlpoints, v3.controlpoints))
 
+    def test_antiderivative(self):
+        """Test that antiderivative inverts the derivative operation for volumes."""
+
+        # Test 1: Trilinear volume - constant derivative in all directions
+        # Volume: x(u,v,w) = u, y(u,v,w) = v, z(u,v,w) = w
+        # d/du: dx/du = 1, dy/du = 0, dz/du = 0
+        # Antiderivative in u should give x(u,v,w) = u^2/2, y(u,v,w) = 0, z(u,v,w) = 0
+        basis1 = BSplineBasis(3, [0, 0, 0, 1, 1, 1])
+        basis2 = BSplineBasis(2, [0, 0, 1, 2, 2])
+        basis3 = BSplineBasis(3, [0, 0, 0, 3, 3, 3])
+        # create cube [0,2]^3 with tiny variations at decimal point
+        controlpoints = [
+            [0.0, 0.0, 0.0],
+            [1.1, 0.1, 0.0],
+            [2.0, 0.0, 0.2],
+            [0.1, 1.0, 0.0],
+            [1.2, 1.0, 0.1],
+            [2.0, 1.0, 0.0],
+            [0.0, 2.0, 0.0],
+            [1.0, 2.1, 0.1],
+            [2.0, 2.0, 0.0],
+            [0.1, 0.0, 1.4],
+            [1.1, 0.1, 1.0],
+            [2.0, 0.3, 1.2],
+            [0.0, 1.1, 1.3],
+            [1.1, 1.2, 1.1],
+            [2.0, 1.0, 1.0],
+            [0.2, 2.2, 1.2],
+            [1.2, 2.0, 1.0],
+            [2.0, 2.0, 1.1],
+            [0.0, 0.0, 2.5],
+            [1.1, 0.3, 2.0],
+            [2.0, 0.0, 2.1],
+            [0.1, 1.1, 2.0],
+            [1.1, 1.1, 2.2],
+            [2.0, 1.1, 2.0],
+            [0.0, 2.1, 2.3],
+            [1.3, 2.1, 2.0],
+            [2.0, 2.0, 2.0],
+        ]
+        vol = Volume(basis1, basis2, basis3, controlpoints)
+
+        # Test integration in u-direction
+        integral_u = vol.get_antiderivative_volume("u")
+
+        # Check: order increased by 1 in u-direction
+        self.assertEqual(integral_u.order(0), vol.order(0) + 1)
+        self.assertEqual(integral_u.order(1), vol.order(1))
+        self.assertEqual(integral_u.order(2), vol.order(2))
+
+        # Check: integral at u=0 is zero (default constant)
+        u_start = integral_u.start(0)
+        v_test = np.linspace(0, 1, 5)
+        w_test = np.linspace(0, 1, 5)
+        integral_at_start = integral_u(u_start, v_test, w_test)
+        self.assertTrue(np.allclose(integral_at_start, 0.0, atol=1e-12))
+
+        # Check: derivative of integral equals original
+        u = np.linspace(0, 1, 7)
+        v = np.linspace(0, 1, 7)
+        w = np.linspace(0, 1, 7)
+        original = vol(u, v, w)
+        recovered = integral_u.derivative(u, v, w, d=(1, 0, 0))
+        error = np.linalg.norm(original - recovered)
+        self.assertAlmostEqual(error, 0.0, places=10)
+
+        # Test 2: Integration in v-direction
+        integral_v = vol.get_antiderivative_volume("v")
+
+        # Check: order increased by 1 in v-direction
+        self.assertEqual(integral_v.order(0), vol.order(0))
+        self.assertEqual(integral_v.order(1), vol.order(1) + 1)
+        self.assertEqual(integral_v.order(2), vol.order(2))
+
+        # Check: integral at v=0 is zero
+        v_start = integral_v.start(1)
+        u_test = np.linspace(0, 1, 5)
+        w_test = np.linspace(0, 1, 5)
+        integral_at_start = integral_v(u_test, v_start, w_test)
+        self.assertTrue(np.allclose(integral_at_start, 0.0, atol=1e-12))
+
+        # Check: derivative of integral equals original
+        original = vol(u, v, w)
+        recovered = integral_v.derivative(u, v, w, d=(0, 1, 0))
+        error = np.linalg.norm(original - recovered)
+        self.assertAlmostEqual(error, 0.0, places=10)
+
+        # Test 3: Integration in w-direction
+        integral_w = vol.get_antiderivative_volume("w")
+
+        # Check: order increased by 1 in w-direction
+        self.assertEqual(integral_w.order(0), vol.order(0))
+        self.assertEqual(integral_w.order(1), vol.order(1))
+        self.assertEqual(integral_w.order(2), vol.order(2) + 1)
+
+        # Check: integral at w=0 is zero
+        w_start = integral_w.start(2)
+        u_test = np.linspace(0, 1, 5)
+        v_test = np.linspace(0, 1, 5)
+        integral_at_start = integral_w(u_test, v_test, w_start)
+        self.assertTrue(np.allclose(integral_at_start, 0.0, atol=1e-12))
+
+        # Check: derivative of integral equals original
+        original = vol(u, v, w)
+        recovered = integral_w.derivative(u, v, w, d=(0, 0, 1))
+        error = np.linalg.norm(original - recovered)
+        self.assertAlmostEqual(error, 0.0, places=10)
+
+        # Test 4: Integration with custom constant
+        constant = np.array([1.0, 2.0, 3.0])
+        integral_with_const = vol.get_antiderivative_volume("u", constant=constant)
+
+        # Check: integral at start equals the constant
+        u_start = integral_with_const.start(0)
+        v_test = np.linspace(0, 1, 5)
+        w_test = np.linspace(0, 1, 5)
+        integral_at_start = integral_with_const(u_start, v_test, w_test)
+        for i in range(len(v_test)):
+            for j in range(len(w_test)):
+                error = np.linalg.norm(integral_at_start[0, i, j, :] - constant)
+                self.assertLess(error, 1e-12)
+
+        # Check: derivative of integral equals original
+        u = np.linspace(0, 1, 9)
+        v = np.linspace(0, 1, 9)
+        w = np.linspace(0, 1, 9)
+        original = vol(u, v, w)
+        recovered = integral_with_const.derivative(u, v, w, d=(1, 0, 0))
+        error = np.linalg.norm(original - recovered)
+        self.assertAlmostEqual(error, 0.0, places=9)
+
+        # Test 5: Verify double integration (integrate in u, then in v)
+        integral_u = vol.get_antiderivative_volume("u")
+        integral_uv = integral_u.get_antiderivative_volume("v")
+
+        # Check: orders increased in both directions
+        self.assertEqual(integral_uv.order(0), vol.order(0) + 1)
+        self.assertEqual(integral_uv.order(1), vol.order(1) + 1)
+        self.assertEqual(integral_uv.order(2), vol.order(2))
+
+        # Check: mixed derivative d^2/dudv equals original
+        u = np.linspace(0, 1, 7)
+        v = np.linspace(0, 1, 7)
+        w = np.linspace(0, 1, 7)
+        original = vol(u, v, w)
+        recovered = integral_uv.derivative(u, v, w, d=(1, 1, 0))
+        error = np.linalg.norm(original - recovered)
+        self.assertAlmostEqual(error, 0.0, places=9)
+
+        # Test 6: Verify triple integration (u, then v, then w)
+        integral_uvw = integral_uv.get_antiderivative_volume("w")
+
+        # Check: orders increased in all directions
+        self.assertEqual(integral_uvw.order(0), vol.order(0) + 1)
+        self.assertEqual(integral_uvw.order(1), vol.order(1) + 1)
+        self.assertEqual(integral_uvw.order(2), vol.order(2) + 1)
+
+        # Check: mixed derivative d^3/dudvdw equals original
+        original = vol(u, v, w)
+        recovered = integral_uvw.derivative(u, v, w, d=(1, 1, 1))
+        error = np.linalg.norm(original - recovered)
+        self.assertAlmostEqual(error, 0.0, places=8)
+
+        # Test 7: Rational volumes should raise an error
+        cp_rational = [
+            [0, 0, 0, 1],
+            [1, 0, 0, 1],
+            [0, 1, 0, 1],
+            [1, 1, 0, 1],
+            [0, 0, 1, 1],
+            [1, 0, 1, 1],
+            [0, 1, 1, 1],
+            [1, 1, 1, 1],
+        ]
+        basis = BSplineBasis(2, [0, 0, 1, 1])
+        vol_rational = Volume(basis, basis, basis, cp_rational, rational=True)
+
+        with self.assertRaises(RuntimeError):
+            vol_rational.get_antiderivative_volume("u")
+
+        # Test 8: Direction parameter variants (numeric and string)
+        integral_0 = vol.get_antiderivative_volume(0)
+        integral_u = vol.get_antiderivative_volume("u")
+        self.assertTrue(np.allclose(integral_0.controlpoints, integral_u.controlpoints))
+
+        integral_1 = vol.get_antiderivative_volume(1)
+        integral_v = vol.get_antiderivative_volume("v")
+        self.assertTrue(np.allclose(integral_1.controlpoints, integral_v.controlpoints))
+
+        integral_2 = vol.get_antiderivative_volume(2)
+        integral_w = vol.get_antiderivative_volume("w")
+        self.assertTrue(np.allclose(integral_2.controlpoints, integral_w.controlpoints))
+
+        # Test 9: Invalid direction should raise an error
+        with self.assertRaises(ValueError):
+            vol.get_antiderivative_volume(3)
+        with self.assertRaises(ValueError):
+            vol.get_antiderivative_volume("x")
+
 
 if __name__ == "__main__":
     unittest.main()

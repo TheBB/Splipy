@@ -373,7 +373,7 @@ class Curve(SplineObject):
     def length(self, t0: Scalar | None = None, t1: Scalar | None = None) -> float:
         """Computes the euclidian length of the curve in geometric space
 
-        .. math:: \\int_{t_0}^{t_1}\\sqrt{x(t)^2 + y(t)^2 + z(t)^2} dt
+        .. math:: \\int_{t_0}^{t_1} \\left\\| \\frac{d\\boldsymbol{x}}{dt}(t) \\right\\| \\, dt
 
         """
         knots = self.knots(0)
@@ -432,7 +432,6 @@ class Curve(SplineObject):
         :param array-like pt: point to which the closest point on the curve is sought
         :return: the closest point on the curve and its parametric location
         :rtype: tuple(numpy.array, float)
-
         """
         knots = self.knots(0)
         mindist_squared = np.linalg.norm(pt - self.controlpoints[0]) ** 2
@@ -452,13 +451,12 @@ class Curve(SplineObject):
 
     def closest_point(self, pt: ArrayLike, t0: Scalar = None) -> tuple[FloatArray, float]:
         """Computes the closest point on this curve to a given point. This is done by newton iteration
-        and is using the state variables `controlpoint_absolute_tolerance`
-        to determine convergence; but limited to 15 iterations.
+        and is using the state variables `controlpoint_absolute_tolerance` and
+        `controlpoint_relative_tolerance` to determine convergence; but limited to 15 iterations.
         :param array-like pt: point to which the closest point on the curve is sought
         :param float t0: optional starting guess for the parametric location of the closest point
         :return: the closest point on the curve and its parametric location
         :rtype: tuple(numpy.array, float)
-
         """
         if self.order(0) == 1:
             return self._closest_point_linear_curve(pt)
@@ -532,6 +530,47 @@ class Curve(SplineObject):
             err2.append(np.dot(error, wg))  # integrate over domain
             err_inf = max(np.max(np.sqrt(error)), err_inf)
         return (np.array(err2, dtype=np.float64), err_inf)
+
+    def get_antiderivative_curve(self, constant: ArrayLike | None = None) -> Curve:
+        """Compute the antiderivative (integral) of the curve.
+
+        The antiderivative is computed by inverting the derivative operator on
+        the spline space. The result is a new curve of order p+1 (where p is
+        the current order) whose derivative equals this curve.
+
+        The antiderivative is only unique up to an additive constant. By default,
+        the constant is chosen such that the antiderivative evaluates to zero at
+        the start of the parametric domain. You can specify a different constant
+        to shift the result.
+
+        :param array-like constant: Optional constant vector to add to the result.
+            If not provided, defaults to zero (antiderivative is zero at t=start).
+            Must have the same dimension as the curve's physical space.
+        :type constant: array-like or None
+        :return: A new curve whose derivative equals self
+        :rtype: Curve
+        :raises RuntimeError: If the curve is rational (not supported)
+
+        Examples:
+
+        .. code:: python
+
+            import splipy as sp
+            import numpy as np
+
+            # Create a linear curve (constant derivative)
+            curve = sp.curve_factory.line([0, 0], [1, 1])
+
+            # Compute antiderivative
+            integral = curve.antiderivative()
+
+            # The derivative of integral should equal the original curve
+            t = np.linspace(0, 1, 11)
+            diff = np.linalg.norm(integral.derivative(t) - curve(t))
+            print(f"Error: {diff}")  # Should be near machine precision
+
+        """
+        return cast("Curve", super().get_antiderivative_spline(0, constant))
 
     def __repr__(self) -> str:
         return str(self.bases[0]) + "\n" + str(self.controlpoints)
