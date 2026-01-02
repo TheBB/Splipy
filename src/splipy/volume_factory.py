@@ -459,9 +459,6 @@ def loft(*srfs: Surface | Sequence[Surface]) -> Volume:
     # ensure all centers have the same dimension (typically some are 2D points and others are 3D points)
     max_dim = max(s.dimension for s in surfaces)
     x = [np.pad(xi, (0, max_dim - len(xi)), mode="constant") for xi in x]
-    dist = [0]
-    for x1, x0 in zip(x[1:], x[:-1]):
-        dist.append(dist[-1] + np.linalg.norm(x1 - x0))
 
     # clone input, so we don't change those references
     # make sure everything has the same dimension since we need to compute length
@@ -469,6 +466,8 @@ def loft(*srfs: Surface | Sequence[Surface]) -> Volume:
     if len(surfaces) == 2:
         return edge_surfaces(surfaces)
     if len(surfaces) == 3:
+        dist = curve_length_parametrization(x)
+
         # can't do cubic spline interpolation, so we'll do quadratic
         basis3 = BSplineBasis(3)
     else:
@@ -502,13 +501,13 @@ def loft(*srfs: Surface | Sequence[Surface]) -> Volume:
     Nw_inv = np.linalg.inv(Nw)
 
     # compute interpolation points in physical space
-    x = np.zeros((m1, m2, n, dim))
+    cp = np.zeros((m1, m2, n, dim))
     for i in range(n):
         tmp = np.tensordot(Nv, surfaces[i].controlpoints, axes=(1, 1))
-        x[:, :, i, :] = np.tensordot(Nu, tmp, axes=(1, 1))
+        cp[:, :, i, :] = np.tensordot(Nu, tmp, axes=(1, 1))
 
     # solve interpolation problem
-    cp = np.tensordot(Nw_inv, x, axes=(1, 2))
+    cp = np.tensordot(Nw_inv, cp, axes=(1, 2))
     cp = np.tensordot(Nv_inv, cp, axes=(1, 2))
     cp = np.tensordot(Nu_inv, cp, axes=(1, 2))
 
