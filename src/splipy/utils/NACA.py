@@ -85,7 +85,7 @@ def NACA(M: float, P: float, X: float, n: int = 40, order: int = 5, closed: bool
         a2 = -0.3516
         a3 = 0.2843
         a4 = -0.1036 if closed else -0.1015
-        return T / 0.2 * (a0 * float(np.sqrt(x)) + a1 * x + a2 * x**2 + a3 * x**3 + a4 * x**4)
+        return T / 0.2 * (a0 * np.sqrt(x) + a1 * x + a2 * x**2 + a3 * x**3 + a4 * x**4)  # type: ignore[no-any-return]
 
     surf = surface_factory.thicken(center_line, thickness)
     _, _, top, btm = surf.edges()

@@ -137,6 +137,7 @@ def revolve(surf: Surface, theta: Scalar = 2 * pi, axis: ArrayLike = (0, 0, 1)) 
     surf = surf.clone()  # clone input surface, throw away old reference
     surf.set_dimension(3)  # add z-components (if not already present)
     surf.force_rational()  # add weight (if not already present)
+    theta = float(theta)
 
     axis_np = np.asarray(axis, dtype=float)
 
@@ -152,7 +153,7 @@ def revolve(surf: Surface, theta: Scalar = 2 * pi, axis: ArrayLike = (0, 0, 1)) 
 
     cp = np.zeros((m * n, 4))
 
-    dt = np.sign(float(theta)) * (path.knots(0)[1] - path.knots(0)[0]) / 2.0
+    dt = np.sign(theta) * (path.knots(0)[1] - path.knots(0)[0]) / 2.0
     for i in range(m):
         weight = path[i, -1]
         cp[i * n : (i + 1) * n, :] = np.reshape(surf.controlpoints.transpose(1, 0, 2), (n, 4))

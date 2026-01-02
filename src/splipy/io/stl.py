@@ -179,18 +179,13 @@ class STL(MasterIO):
         else:
             knots = surface.knots(0)
             p = surface.order(0)
-            u = np.sort(
-                np.fromiter(
-                    chain(
-                        chain.from_iterable(
-                            np.linspace(k0, k1, 2 * p - 3, endpoint=False)
-                            for k0, k1 in zip(knots[:-1], knots[1:])
-                        ),
-                        knots,
-                    ),
-                    dtype=float,
-                )
+
+            linear_knots = chain.from_iterable(
+                np.linspace(k0, k1, 2 * p - 3, endpoint=False)
+                for k0, k1 in zip(knots[:-1], knots[1:])
             )
+            all_knots = chain(linear_knots, knots)
+            u = np.sort(np.fromiter(all_knots, dtype=float))
 
         v: FloatArray
         if n is not None:
@@ -200,18 +195,13 @@ class STL(MasterIO):
         else:
             knots = surface.knots(1)
             p = surface.order(1)
-            v = np.sort(
-                np.fromiter(
-                    chain(
-                        chain.from_iterable(
-                            np.linspace(k0, k1, 2 * p - 3, endpoint=False)
-                            for k0, k1 in zip(knots[:-1], knots[1:])
-                        ),
-                        knots,
-                    ),
-                    dtype=float,
-                )
+
+            linear_knots = chain.from_iterable(
+                np.linspace(k0, k1, 2 * p - 3, endpoint=False)
+                for k0, k1 in zip(knots[:-1], knots[1:])
             )
+            all_knots = chain(linear_knots, knots)
+            v = np.sort(np.fromiter(all_knots, dtype=float))
 
         # perform evaluation and make sure that we have 3 components (in case of 2D geometries)
         x = surface(u, v)
