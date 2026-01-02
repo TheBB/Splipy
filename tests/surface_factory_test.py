@@ -410,6 +410,49 @@ class TestSurfaceFactory(unittest.TestCase):
                 self.assertAlmostEqual(x[1] ** 2 + x[2] ** 2, 1.0**2)  # distance to x-axis
                 self.assertAlmostEqual(x[0], u)  # x coordinate should be linear
 
+    def test_surface_loft(self):
+        # Test 1: loft two straight lines to the unit square
+        crv1 = cf.line((0, 0), (1, 0))
+        crv2 = cf.line((0, 1), (1, 1))
+        surf = sf.loft(crv1, crv2)
+
+        self.assertIsInstance(surf, Surface)
+        self.assertEqual(surf.order(), (2, 2))
+        for u in np.linspace(0, 1, 7):
+            for v in np.linspace(0, 1, 7):
+                self.assertAlmostEqual(surf(u, v)[0], u)  # x-coordinate
+                self.assertAlmostEqual(surf(u, v)[1], v)  # y-coordinate
+
+        # Test 2: loft between four surfaces "discs" at z=0,1,2,3 (radial parametrization)
+        crv1 = Curve(BSplineBasis(3, range(11), 1), [[1, -1], [1, 0], [1, 1], [-1, 1], [-1, 0], [-1, -1]])
+        crv2 = cf.circle(2) + (0, 0, 1)
+        crv3 = Curve(BSplineBasis(4, range(11), 2), [[1, -1, 2], [1, 1, 2], [-1, 1, 2], [-1, -1, 2]])
+        crv4 = cf.circle(2) + (0, 0, 3)
+        surf = sf.loft(crv1, crv2, crv3, crv4)
+
+        crv1.set_dimension(3)  # for convenience when evaluating
+        t = np.linspace(0, 1, 13)
+
+        u = np.linspace(crv1.start(0), crv1.end(0), 13)
+        pt = crv1(u)
+        pt2 = surf(t, 0).reshape(13, 3)
+        self.assertAlmostEqual(np.linalg.norm(pt - pt2), 0.0)
+
+        u = np.linspace(crv2.start(0), crv2.end(0), 13)
+        pt = crv2(u)
+        pt2 = surf(t, 1).reshape(13, 3)
+        self.assertAlmostEqual(np.linalg.norm(pt - pt2), 0.0)
+
+        u = np.linspace(crv3.start(0), crv3.end(0), 13)
+        pt = crv3(u)
+        pt2 = surf(t, 2).reshape(13, 3)
+        self.assertAlmostEqual(np.linalg.norm(pt - pt2), 0.0)
+
+        u = np.linspace(crv4.start(0), crv4.end(0), 13)
+        pt = crv4(u)
+        pt2 = surf(t, 3).reshape(13, 3)
+        self.assertAlmostEqual(np.linalg.norm(pt - pt2), 0.0)
+
     def test_interpolate(self):
         t = np.linspace(0, 1, 7)
         V, U = np.meshgrid(t, t)

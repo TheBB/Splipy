@@ -227,37 +227,19 @@ class TestVolumeFactory(unittest.TestCase):
 
         self.assertTrue(np.allclose(pt, pt2))
 
-    def test_surface_loft(self):
-        crv1 = Curve(BSplineBasis(3, range(11), 1), [[1, -1], [1, 0], [1, 1], [-1, 1], [-1, 0], [-1, -1]])
-        crv2 = cf.circle(2) + (0, 0, 1)
-        crv3 = Curve(BSplineBasis(4, range(11), 2), [[1, -1, 2], [1, 1, 2], [-1, 1, 2], [-1, -1, 2]])
-        crv4 = cf.circle(2) + (0, 0, 3)
-        surf = sf.loft(crv1, crv2, crv3, crv4)
-
-        crv1.set_dimension(3)  # for convenience when evaluating
-        t = np.linspace(0, 1, 13)
-
-        u = np.linspace(crv1.start(0), crv1.end(0), 13)
-        pt = crv1(u)
-        pt2 = surf(t, 0).reshape(13, 3)
-        self.assertAlmostEqual(np.linalg.norm(pt - pt2), 0.0)
-
-        u = np.linspace(crv2.start(0), crv2.end(0), 13)
-        pt = crv2(u)
-        pt2 = surf(t, 1).reshape(13, 3)
-        self.assertAlmostEqual(np.linalg.norm(pt - pt2), 0.0)
-
-        u = np.linspace(crv3.start(0), crv3.end(0), 13)
-        pt = crv3(u)
-        pt2 = surf(t, 2).reshape(13, 3)
-        self.assertAlmostEqual(np.linalg.norm(pt - pt2), 0.0)
-
-        u = np.linspace(crv4.start(0), crv4.end(0), 13)
-        pt = crv4(u)
-        pt2 = surf(t, 3).reshape(13, 3)
-        self.assertAlmostEqual(np.linalg.norm(pt - pt2), 0.0)
-
     def test_volume_loft(self):
+        # Test 1: loft to create the unit cube from two surfaces
+        surf1 = Surface()
+        surf2 = Surface() + (0, 0, 1)
+        vol = vf.loft(surf1, surf2)
+        self.assertIsInstance(vol, Volume)
+        self.assertEqual(vol.order(0), 2)
+        self.assertEqual(vol.order(1), 2)
+        self.assertEqual(vol.order(2), 2)
+        self.assertAlmostEqual(np.linalg.norm(vol(1, 1, 1) - [1, 1, 1]), 0.0)
+        self.assertAlmostEqual(np.linalg.norm(vol(0, 0, 0) - [0, 0, 0]), 0.0)
+
+        # Test 2: loft between four surfaces "discs" at z=0,1,2,3 (radial parametrization)
         crv1 = Curve(BSplineBasis(3, range(11), 1), [[1, -1], [1, 0], [1, 1], [-1, 1], [-1, 0], [-1, -1]])
         crv2 = cf.circle(2) + (0, 0, 1)
         crv3 = Curve(BSplineBasis(4, range(11), 2), [[1, -1, 2], [1, 1, 2], [-1, 1, 2], [-1, -1, 2]])
