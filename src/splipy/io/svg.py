@@ -74,7 +74,7 @@ class SVG(MasterIO):
     margin: float
 
     all_objects: list[SplineObject]
-    all_kwargs: list[tuple[Any]]
+    all_kwargs: list[dict[str, Any]]
 
     center: tuple[float, float]
     offset: tuple[float, float]
