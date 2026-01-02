@@ -26,7 +26,7 @@ INTERACTIVE = "--ci" not in argv[1:]
 def lissajous(a, b, d):
     # request a,b integers, so we have closed, periodic curves
     n = gcd(a,b)
-    N = (a/n) * (b/n) # number of periods before looping
+    N = (a//n) * (b//n) # number of periods before looping
 
     # error test input
     if N > 1e4:       # non-integer (a,b) or otherwise too irregular
@@ -44,12 +44,12 @@ def lissajous(a, b, d):
 ### main program ###
 
 # create the curve
-# crv = lissajous(60, 44, pi/2);
-crv = lissajous(3, 4, pi/2);
+# crv = lissajous(60, 44, pi/2)
+crv = lissajous(3, 4, pi/2)
 
 # evaluate the curve at n points
 n = 3000
-t = np.linspace(crv.start(0), crv.end(0), n);
+t = np.linspace(crv.start(0), crv.end(0), n)
 x = crv(t)
 
 ### do the  plotting animation
@@ -83,4 +83,4 @@ if INTERACTIVE:
 else:
     # save results as an animated gif for web display (PS: this function call is slow)
     path = Path(__file__).parent / "lissajous34.gif"
-    ani.save(str(path), writer='imagemagick', fps=30);
+    ani.save(str(path), writer='imagemagick', fps=30)

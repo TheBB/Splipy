@@ -8,7 +8,6 @@
 
 from pathlib import Path
 from sys import argv
-from splipy import *
 import splipy.curve_factory as curves
 import splipy.surface_factory as surfaces
 import numpy as np
