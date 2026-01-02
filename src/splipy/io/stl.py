@@ -2,21 +2,24 @@ from __future__ import annotations
 
 import struct
 from abc import ABC, abstractmethod
-from collections.abc import Iterable, Sequence
 from itertools import chain
 from pathlib import Path
-from types import TracebackType
-from typing import BinaryIO, Self, TextIO
+from typing import TYPE_CHECKING, BinaryIO, Self, TextIO
 
 import numpy as np
 
 from splipy.splinemodel import SplineModel
 from splipy.surface import Surface
-from splipy.typing import FloatArray
 from splipy.utils import ensure_listlike
 from splipy.volume import Volume
 
 from .master import MasterIO
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
+    from types import TracebackType
+
+    from splipy.typing import FloatArray
 
 ASCII_FACET = """facet normal 0 0 0
 outer loop
@@ -181,8 +184,7 @@ class STL(MasterIO):
             p = surface.order(0)
 
             linear_knots = chain.from_iterable(
-                np.linspace(k0, k1, 2 * p - 3, endpoint=False)
-                for k0, k1 in zip(knots[:-1], knots[1:])
+                np.linspace(k0, k1, 2 * p - 3, endpoint=False) for k0, k1 in zip(knots[:-1], knots[1:])
             )
             all_knots = chain(linear_knots, knots)
             u = np.sort(np.fromiter(all_knots, dtype=float))
@@ -197,8 +199,7 @@ class STL(MasterIO):
             p = surface.order(1)
 
             linear_knots = chain.from_iterable(
-                np.linspace(k0, k1, 2 * p - 3, endpoint=False)
-                for k0, k1 in zip(knots[:-1], knots[1:])
+                np.linspace(k0, k1, 2 * p - 3, endpoint=False) for k0, k1 in zip(knots[:-1], knots[1:])
             )
             all_knots = chain(linear_knots, knots)
             v = np.sort(np.fromiter(all_knots, dtype=float))

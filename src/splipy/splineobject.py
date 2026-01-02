@@ -66,7 +66,10 @@ class SplineObject:
 
     @staticmethod
     def construct_subclass(
-        bases: Sequence[BSplineBasis], controlpoints: ArrayLike, rational: bool, raw: bool = True,
+        bases: Sequence[BSplineBasis],
+        controlpoints: ArrayLike,
+        rational: bool,
+        raw: bool = True,
     ) -> SplineObject:
         for subcls in SplineObject.__subclasses__():
             if subcls._intended_pardim == len(bases):

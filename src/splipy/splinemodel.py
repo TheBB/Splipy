@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from collections import Counter, OrderedDict, namedtuple
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from itertools import chain, islice, permutations, product
 from operator import itemgetter
 from pathlib import Path
-from typing import Any, Iterable, Iterator
+from typing import Any
 
 import numpy as np
 

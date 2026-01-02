@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 import inspect
-from collections.abc import Sequence
 from math import atan2, pi, sqrt
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Literal, overload, cast
+from typing import TYPE_CHECKING, Literal, cast, overload
 
 import numpy as np
 
-from splipy.typing import FloatArray
 from splipy.utils.curve import curve_length_parametrization
 
 from . import curve_factory, state
@@ -21,7 +19,9 @@ from .utils import flip_and_move_plane_geometry, rotate_local_x_axis
 from .utils.nutils import controlpoints, degree, multiplicities
 
 if TYPE_CHECKING:
-    from splipy.typing import ArrayLike, Scalar
+    from collections.abc import Callable, Sequence
+
+    from splipy.typing import ArrayLike, FloatArray, Scalar
 
 __all__ = [
     "square",

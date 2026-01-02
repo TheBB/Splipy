@@ -1,8 +1,6 @@
 from __future__ import annotations
-from typing import Any
 
-from splipy.splineobject import SplineObject
-from splipy.typing import FloatArray
+from typing import TYPE_CHECKING, Any
 
 __doc__ = "Implementation of convenience methods with respect to nutils integration."
 
@@ -11,6 +9,10 @@ import numpy as np
 from splipy.curve import Curve
 from splipy.surface import Surface
 from splipy.volume import Volume
+
+if TYPE_CHECKING:
+    from splipy.splineobject import SplineObject
+    from splipy.typing import FloatArray
 
 
 def controlpoints(spline: SplineObject) -> FloatArray:

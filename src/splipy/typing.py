@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal, Protocol, SupportsFloat, TypedDict, TypeVar
+from typing import Literal, SupportsFloat, TypedDict, TypeVar
 
 import numpy as np
 import numpy.typing as npt

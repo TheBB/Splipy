@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import re
-from types import TracebackType
-from typing import ClassVar, Self, Sequence, cast
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from typing import TYPE_CHECKING, ClassVar, Self, cast
 from xml.dom import minidom
 
 import numpy as np
@@ -15,9 +14,14 @@ from splipy.curve import Curve
 from splipy.splinemodel import SplineModel
 from splipy.splineobject import SplineObject
 from splipy.surface import Surface
-from splipy.typing import FloatArray
 
 from .master import MasterIO
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from types import TracebackType
+
+    from splipy.typing import FloatArray
 
 
 def read_number_and_unit(mystring: str) -> tuple[float, str]:

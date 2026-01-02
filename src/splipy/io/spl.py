@@ -1,20 +1,21 @@
 from __future__ import annotations
 
-from collections.abc import Iterator
 from itertools import islice
 from pathlib import Path
-from types import TracebackType
-from typing import Self, TextIO
+from typing import TYPE_CHECKING, Self, TextIO
 
 import numpy as np
 
 from splipy.basis import BSplineBasis
-from splipy.curve import Curve
 from splipy.splineobject import SplineObject
-from splipy.surface import Surface
-from splipy.volume import Volume
 
 from .master import MasterIO
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from types import TracebackType
+
+    from splipy.curve import Curve
 
 
 class SPL(MasterIO):

@@ -1,24 +1,27 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
 from pathlib import Path
-from types import TracebackType
-from typing import ClassVar, Literal, Self, TextIO, cast, overload
+from typing import TYPE_CHECKING, ClassVar, Literal, Self, TextIO, cast, overload
 
 import numpy as np
 from numpy import pi, savetxt
 
 from splipy import curve_factory, state, surface_factory
 from splipy.basis import BSplineBasis
-from splipy.curve import Curve
 from splipy.splinemodel import SplineModel
 from splipy.splineobject import SplineObject
 from splipy.surface import Surface
 from splipy.trimmedsurface import TrimmedSurface
 from splipy.utils import flip_and_move_plane_geometry, rotate_local_x_axis
-from splipy.volume import Volume
 
 from .master import MasterIO
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from types import TracebackType
+
+    from splipy.curve import Curve
+    from splipy.volume import Volume
 
 
 class G2(MasterIO):

@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import inspect
 from math import ceil, cos, pi, sin, sqrt
+from typing import TYPE_CHECKING
 
 import numpy as np
 import scipy.sparse as sp
@@ -15,6 +16,9 @@ from . import state
 from .basis import BSplineBasis
 from .curve import Curve
 from .utils import flip_and_move_plane_geometry, rotate_local_x_axis
+
+if TYPE_CHECKING:
+    from .typing import Scalar
 
 __all__ = [
     "Boundary",

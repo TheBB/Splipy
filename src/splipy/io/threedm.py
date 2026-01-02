@@ -1,17 +1,18 @@
 from __future__ import annotations
 
-from types import TracebackType
-from typing import Any, Self, cast, Iterable, Sized, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, Self, cast
 
 import numpy as np
 from rhino3dm import (
     Arc,
     BezierCurve,
     Brep,
+    BrepFace,
     Circle,
     Cylinder,
     Extrusion,
     File3dm,
+    File3dmObject,
     GeometryBase,
     Line,
     NurbsCurve,
@@ -20,21 +21,25 @@ from rhino3dm import (
     Polyline,
     PolylineCurve,
     Sphere,
-    File3dmObject,
-    BrepFace,
 )
 from rhino3dm import Curve as threedmCurve  # name conflict with splipy
 from rhino3dm import Surface as threedmSurface  # name conflict with splipy
 
 from splipy import BSplineBasis, Curve, Surface, curve_factory
-from splipy.splineobject import SplineObject
 
 from .master import MasterIO
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from types import TracebackType
+
+    from splipy.splineobject import SplineObject
 
 
 # The rhino3dm type hints are incomplete, hence we have some shims.
 class NurbsSurfacePointListShim(Protocol):
     def __getitem__(self, index: Any) -> Point4d: ...
+
 
 class NurbsCurvePointListShim(Protocol):
     def __getitem__(self, index: Any) -> Point4d: ...

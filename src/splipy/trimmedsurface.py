@@ -1,18 +1,20 @@
 from __future__ import annotations
 
 from math import pi
-from typing import Never, Sequence
+from typing import TYPE_CHECKING, Never
 
 import numpy as np
 from scipy.spatial import ConvexHull
 
-from splipy.basis import BSplineBasis
-from splipy.curve import Curve
-from splipy.typing import ArrayLike
-
 from . import state
 from .surface import Surface
-from .utils import sections
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from splipy.basis import BSplineBasis
+    from splipy.curve import Curve
+    from splipy.typing import ArrayLike
 
 __all__ = ["TrimmedSurface"]
 
