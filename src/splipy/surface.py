@@ -393,7 +393,7 @@ class Surface(SplineObject):
         :type constant: array-like or None
         :return: A new surface whose derivative in the given direction equals self
         :rtype: Surface
-        :raises RuntimeError: If the surface is rational (not yet supported)
+        :raises RuntimeError: If the surface is rational (not supported)
 
         Examples:
 

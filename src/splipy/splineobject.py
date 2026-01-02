@@ -365,7 +365,7 @@ class SplineObject:
 
     def get_antiderivative_spline(
         self, direction: Direction | None = None, constant: ArrayLike | None = None
-    ) -> SplineObject | list[SplineObject]:
+    ) -> SplineObject:
         """Compute the antiderivative (integral) of the spline object in a given parametric direction.
 
         The antiderivative is computed by inverting the derivative operator on
@@ -408,10 +408,10 @@ class SplineObject:
         :type constant: array-like or None
         :return: Antiderivative spline object, or list of antiderivatives if direction is None
         :rtype: SplineObject or list[SplineObject]
-        :raises RuntimeError: If the spline is rational (not yet supported)
+        :raises RuntimeError: If the spline is rational (not supported)
         """
         if self.rational:
-            raise RuntimeError("Antiderivative not yet supported for rational splines")
+            raise RuntimeError("Antiderivative not supported for rational splines")
 
         # If no direction is specified, return a list with all antiderivatives
         if direction is None:

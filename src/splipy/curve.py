@@ -549,7 +549,7 @@ class Curve(SplineObject):
         :type constant: array-like or None
         :return: A new curve whose derivative equals self
         :rtype: Curve
-        :raises RuntimeError: If the curve is rational (not yet supported)
+        :raises RuntimeError: If the curve is rational (not supported)
 
         Examples:
 

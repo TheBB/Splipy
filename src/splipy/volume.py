@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
     from .curve import Curve
     from .surface import Surface
-    from .typing import ArrayLike, FloatArray
+    from .typing import ArrayLike, Direction, FloatArray
 
 __all__ = ["Volume"]
 
@@ -200,7 +200,7 @@ class Volume(SplineObject):
                     result += str(self.controlpoints[i, j, k, :]) + "\n"
         return result
 
-    def get_antiderivative_volume(self, direction: int | str, constant: ArrayLike | None = None) -> Volume:
+    def get_antiderivative_volume(self, direction: Direction, constant: ArrayLike | None = None) -> Volume:
         """Compute the antiderivative (integral) of the volume in a given parametric direction.
 
         The antiderivative is computed by inverting the derivative operator on
@@ -221,7 +221,7 @@ class Volume(SplineObject):
         :type constant: array-like or None
         :return: A new volume whose derivative in the given direction equals self
         :rtype: Volume
-        :raises RuntimeError: If the volume is rational (not yet supported)
+        :raises RuntimeError: If the volume is rational (not supported)
 
         Examples:
 
