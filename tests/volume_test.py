@@ -752,6 +752,67 @@ class TestVolume(unittest.TestCase):
         v[:, :, 1, 0:2] = 0.0  # squeeze top together, creating a pyramid
         self.assertAlmostEqual(v.volume(), 1.0 / 3)
 
+    def test_const_par_surface(self):
+        # test with a unit cube
+        vol = Volume()
+
+        # test u-direction (direction 0)
+        surf = vol.const_par_surface(0.5, 0)
+        print(vol)
+        print(surf)
+        self.assertEqual(surf.pardim, 2)  # should be a surface
+        self.assertEqual(surf.dimension, 3)  # 3D geometry
+        # evaluate at the center of the resulting surface
+        pt = surf(0.1, 0.2)
+        self.assertAlmostEqual(pt[0], 0.5)  # u is fixed at 0.5
+        self.assertAlmostEqual(pt[1], 0.1)  # v varies
+        self.assertAlmostEqual(pt[2], 0.2)  # w varies
+
+        # test v-direction (direction 1)
+        surf = vol.const_par_surface(0.25, 1)
+        self.assertEqual(surf.pardim, 2)
+        pt = surf(0.3, 0.4)
+        self.assertAlmostEqual(pt[0], 0.3)  # u varies
+        self.assertAlmostEqual(pt[1], 0.25)  # v is fixed at 0.25
+        self.assertAlmostEqual(pt[2], 0.4)  # w varies
+
+        # test w-direction (direction 2)
+        surf = vol.const_par_surface(0.75, 2)
+        self.assertEqual(surf.pardim, 2)
+        pt = surf(0.9, 0.7)
+        self.assertAlmostEqual(pt[0], 0.9)  # u varies
+        self.assertAlmostEqual(pt[1], 0.7)  # v varies
+        self.assertAlmostEqual(pt[2], 0.75)  # w is fixed at 0.75
+
+        # test with string directions
+        surf = vol.const_par_surface(0.3, "u")
+        pt = surf(0.5, 0.5)
+        self.assertAlmostEqual(pt[0], 0.3)
+
+        surf = vol.const_par_surface(0.7, "v")
+        pt = surf(0.5, 0.5)
+        self.assertAlmostEqual(pt[1], 0.7)
+
+        surf = vol.const_par_surface(0.9, "w")
+        pt = surf(0.5, 0.5)
+        self.assertAlmostEqual(pt[2], 0.9)
+
+        b1 = BSplineBasis(2)
+        b2 = BSplineBasis(3)
+        b3 = BSplineBasis(4)
+        vol = Volume(b1, b2, b3)
+        surf = vol.const_par_surface(0.5, 0)
+        self.assertEqual(surf.bases[0].order, 3)
+        self.assertEqual(surf.bases[1].order, 4)
+
+        surf = vol.const_par_surface(0.3, 1)
+        self.assertEqual(surf.bases[0].order, 2)
+        self.assertEqual(surf.bases[1].order, 4)
+
+        surf = vol.const_par_surface(0.8, 2)
+        self.assertEqual(surf.bases[0].order, 2)
+        self.assertEqual(surf.bases[1].order, 3)
+
     def test_operators(self):
         v = Volume()
         v.raise_order(1, 1, 2)

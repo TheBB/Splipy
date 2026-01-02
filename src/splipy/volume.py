@@ -1,19 +1,20 @@
 from __future__ import annotations
 
+from bisect import bisect_left
 from typing import TYPE_CHECKING, ClassVar, cast
 
 import numpy as np
 
 from .basis import BSplineBasis
 from .splineobject import SplineObject
-from .utils import ensure_listlike, sections
+from .surface import Surface
+from .utils import check_direction, ensure_listlike, sections
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from .curve import Curve
-    from .surface import Surface
-    from .typing import ArrayLike, Direction, FloatArray
+    from .typing import ArrayLike, Direction, FloatArray, Scalar
 
 __all__ = ["Volume"]
 
@@ -99,6 +100,39 @@ class Volume(SplineObject):
             ", Surface | None, Surface | None, Surface | None]",
             tuple(boundary_faces),
         )
+
+    def const_par_surface(self, knot: Scalar, direction: Direction) -> Surface:
+        """Get a Surface representation of the parametric volume at some constant
+        knot value.
+        :param float knot: The constant knot value to sample the volume
+        :param int direction: The parametric direction for the constant value
+        :return: surface in this volume
+        :rtype: Surface
+        """
+        direction = check_direction(direction, 3)
+
+        # clone basis since we need to augment this by knot insertion
+        b = self.bases[direction].clone()
+
+        # snap to existing knot if close enough
+        knot = b.snap_point(knot)
+
+        # compute mapping matrix C which is the knot insertion operator
+        mult = b.min_continuity(knot, b.order - 1)
+        C = np.identity(self.shape[direction])
+        for i in range(mult):
+            C = b.insert_knot(knot) @ C
+
+        # at this point we have a C0 basis, find the right interpolating index
+        i = max(bisect_left(b.knots, knot) - 1, 0)
+
+        # compute the controlpoints and return Surface
+        cp = np.tensordot(C[i, :], self.controlpoints, axes=(0, direction))
+        cp = cp.transpose(1, 0, 2)
+
+        # return surface with the two remaining directions
+        remaining_dirs = [d for d in range(3) if d != direction]
+        return Surface(self.bases[remaining_dirs[0]], self.bases[remaining_dirs[1]], cp, self.rational)
 
     def volume(self) -> float:
         """Computes the volume of the object in geometric space"""
