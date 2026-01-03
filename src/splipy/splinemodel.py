@@ -1041,7 +1041,7 @@ class SplineModel:
             index = node.generate_cell_numbers(index)
         self.ncells = index
 
-    def cps(self) -> ControlPoints:
+    def cps(self) -> FloatArray:
         cps = np.zeros((self.ncps, self.dimension))
         for node in self.catalogue.top_nodes():
             assert node.cp_numbers is not None

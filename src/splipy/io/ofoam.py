@@ -8,7 +8,7 @@ from typing import Self
 
 import numpy as np
 
-from splipy.splinemodel import SplineModel
+from splipy.splinemodel import FaceArray, SplineModel
 
 
 class OpenFOAM:
@@ -58,7 +58,7 @@ class OpenFOAM:
         model.generate_cp_numbers()
         model.generate_cell_numbers()
         faces = model.faces()
-        ninternal = sum(faces["name"] is None)
+        ninternal = sum(faces.name == None)
         note = (
             f"nPoints: {model.ncps} nCells: {model.ncells} nFaces: {len(faces)} nInternalFaces: {ninternal}"
         )
@@ -69,11 +69,11 @@ class OpenFOAM:
         # - All faces in the same boundary must be contiguous
         # - Low number owners before high number owners
         # - Low number neighbors before high number neighbors
-        faces = list(faces)
-        faces = sorted(faces, key=itemgetter("neighbor"))
-        faces = sorted(faces, key=itemgetter("owner"))
-        faces = sorted(faces, key=lambda x: (x["name"] is not None, x["name"]))
-        faces = np.array(faces)
+        faces_list = list(faces)
+        faces_list = sorted(faces_list, key=itemgetter("neighbor"))
+        faces_list = sorted(faces_list, key=itemgetter("owner"))
+        faces_list = sorted(faces_list, key=lambda x: (x["name"] is not None, x["name"]))
+        faces = np.array(faces_list).view(FaceArray)
 
         # Write the points file (vertex coordinates)
         with (self.target / "points").open("w") as f:
