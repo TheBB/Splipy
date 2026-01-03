@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING, ClassVar, Self, cast
 import numpy as np
 import scipy.sparse.linalg as splinalg
 
+from splipy.typing import Point
+
 from . import state
 from .basis import BSplineBasis
 from .splineobject import SplineObject
@@ -433,7 +435,7 @@ class Curve(SplineObject):
         # return new resampled curve
         return Curve(basis, controlpoints)
 
-    def _closest_point_linear_curve(self, pt: ArrayLike) -> tuple[FloatArray, float]:
+    def _closest_point_linear_curve(self, pt: Point) -> tuple[FloatArray, float]:
         """Computes the closest point on a linear curve to a given point.
         :param array-like pt: point to which the closest point on the curve is sought
         :return: the closest point on the curve and its parametric location
@@ -455,7 +457,7 @@ class Curve(SplineObject):
                     t = t1
         return self(t), t
 
-    def closest_point(self, pt: ArrayLike, t0: Scalar = None) -> tuple[FloatArray, float]:
+    def closest_point(self, pt: Point, t0: Scalar | None = None) -> tuple[FloatArray, float]:
         """Computes the closest point on this curve to a given point. This is done by newton iteration
         and is using the state variables `controlpoint_absolute_tolerance` and
         `controlpoint_relative_tolerance` to determine convergence; but limited to 15 iterations.
@@ -469,6 +471,8 @@ class Curve(SplineObject):
 
         if t0 is None:
             dist = [np.linalg.norm(cp - pt) for cp in self.controlpoints]
+
+        pt = np.asarray(pt)
         i = np.argmin(dist)
         t0 = self.bases[0].greville(i)
         t = t0

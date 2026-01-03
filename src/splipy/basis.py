@@ -17,7 +17,7 @@ from .utils import ensure_listlike_old
 if TYPE_CHECKING:
     from splipy.typing import Knots
 
-    from .typing import FloatArray, Scalar
+    from .typing import FloatArray, Int, Scalar
 
 __all__ = ["BSplineBasis"]
 
@@ -133,12 +133,13 @@ class BSplineBasis:
         return float(np.sum(self.knots[index + 1 : index + self.order]) / (self.order - 1))
 
     @overload
-    def greville(self, index: int) -> float: ...
+    def greville(self, index: Int) -> float: ...
 
     @overload
     def greville(self) -> FloatArray: ...
 
-    def greville(self, index: int | None = None) -> float | FloatArray:
+
+    def greville(self, index: Int | None = None) -> float | FloatArray:
         """Fetch greville points, also known as knot averages:
 
         .. math:: \\sum_{j=i+1}^{i+p-1} \\frac{t_j}{p-1}

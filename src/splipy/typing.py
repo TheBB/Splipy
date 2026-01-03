@@ -29,6 +29,8 @@ type Points = ArrayLike
 # np.integer encompasses floats of many different sizes.
 type Scalar = float | np.floating | int | np.integer
 
+type Int = int | np.integer
+
 type FloatArray = npt.NDArray[np.floating]
 type IntArray = npt.NDArray[np.integer]
 
