@@ -2,34 +2,42 @@ from __future__ import annotations
 
 from itertools import repeat
 
+from splipy.curve import Curve
+from splipy.typing import FloatArray, Points
+
 __doc__ = "Implementation of various curve utilities"
 
 import numpy as np
 
 
-def curve_length_parametrization(pts, normalize=False, reps=1):
+def curve_length_parametrization(pts: Points, normalize: bool = False, reps: int = 1) -> FloatArray:
     """Calculate knots corresponding to a curvelength parametrization of a set of
     points.
 
     :param numpy.array pts: A set of points
     :param bool normalize: Whether to normalize the parametrization
+    :param reps int: How many repetitions of the first and last knot to return.
     :return: The parametrization
     :rtype: [float]
     """
-    knots = [0.0] * reps
-    for i in range(1, len(pts)):
-        knots.append(knots[-1] + np.linalg.norm(pts[i] - pts[i - 1]))
+    points = np.asarray(pts)
+    npts = points.shape[0]
+    knots = np.zeros((npts + (reps - 1) * 2,), dtype=float)
 
-    knots.extend(repeat(knots[-1], reps - 1))
+    distances = np.linalg.norm(points[1:, ...] - points[:-1, ...], axis=1)
+    distances = np.cumsum(distances)
+    knots[reps:reps-1+npts] = distances
+
+    if reps > 1:
+        knots[-reps+1:] = knots[-reps]
 
     if normalize:
-        length = knots[-1]
-        knots = [k / length for k in knots]
+        knots /= knots[-1]
 
     return knots
 
 
-def get_curve_points(curve):
+def get_curve_points(curve: Curve) -> FloatArray:
     """Evaluate the curve in all its knots.
 
     :param curve: The curve

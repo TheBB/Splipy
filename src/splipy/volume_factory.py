@@ -474,10 +474,11 @@ def loft(*srfs: Surface | Sequence[Surface]) -> Volume:
         basis3 = BSplineBasis(3)
     else:
         # create knot vector from the euclidian length between the surfaces
-        dist = curve_length_parametrization([s.center() for s in surfaces])
+        dist = curve_length_parametrization(np.asarray([s.center() for s in surfaces]))
+        knot = curve_length_parametrization(np.asarray([s.center() for s in surfaces]), reps=4)
 
         # using "free" boundary condition by setting N'''(u) continuous at second to last and second knot
-        knot = [dist[0]] * 4 + dist[2:-2] + [dist[-1]] * 4
+        knot = np.delete(knot, [4, -5])
         basis3 = BSplineBasis(4, knot)
 
     n = len(surfaces)

@@ -781,10 +781,11 @@ def loft(*in_curves: Curve | Sequence[Curve]) -> Surface:
         basis2 = BSplineBasis(3)
     else:
         # create knot vector from the euclidian length between the curves
-        dist = curve_length_parametrization([c.center() for c in curves])
+        dist = curve_length_parametrization(np.asarray([c.center() for c in curves]))
+        knot = curve_length_parametrization(np.asarray([c.center() for c in curves]), reps=4)
 
         # using "free" boundary condition by setting N'''(u) continuous at second to last and second knot
-        knot = [dist[0]] * 4 + dist[2:-2] + [dist[-1]] * 4
+        knot = np.delete(knot, [4, -5])
         basis2 = BSplineBasis(4, knot)
 
     n = len(curves)
