@@ -3,6 +3,8 @@ from __future__ import annotations
 from itertools import groupby
 from operator import itemgetter
 from pathlib import Path
+from types import TracebackType
+from typing import Self
 
 import numpy as np
 
@@ -12,10 +14,10 @@ from splipy.splinemodel import SplineModel
 class OpenFOAM:
     target: Path
 
-    def __init__(self, target):
+    def __init__(self, target: str) -> None:
         self.target = Path(target)
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         # Create the target directory if it does not exist
         if not self.target.exists():
             self.target.mkdir(parents=True, exist_ok=True)
@@ -25,10 +27,15 @@ class OpenFOAM:
 
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(
+        self,
+        exc_type: type[BaseException],
+        exc_value: BaseException,
+        traceback: TracebackType,
+    ) -> None:
         pass
 
-    def _header(self, cls, obj, note=None):
+    def _header(self, cls: str, obj: str, note: str | None = None) -> str:
         s = "FoamFile\n{\n"
         s += "    version     2.0;\n"
         s += "    format      ascii;\n"
@@ -39,7 +46,7 @@ class OpenFOAM:
         s += "}\n"
         return s
 
-    def write(self, model):
+    def write(self, model: SplineModel) -> None:
         assert isinstance(model, SplineModel), "OpenFOAM.write only supports SplineModel objects"
 
         # Only linear volumes in 3D, please

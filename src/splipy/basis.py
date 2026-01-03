@@ -120,7 +120,7 @@ class BSplineBasis:
         operator = np.ones((self.order - 1,), dtype=np.float64) / (self.order - 1)
         return np.convolve(self.knots[1 : -1 - (self.periodic + 1)], operator, mode="valid")
 
-    def greville_single(self, index: int) -> float:
+    def greville_single(self, index: Int) -> float:
         """Fetch a greville point, also known as a knot averages:
 
         .. math:: \\sum_{j=i+1}^{i+p-1} \\frac{t_j}{p-1}

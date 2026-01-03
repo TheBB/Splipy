@@ -100,7 +100,7 @@ def rotation_matrix(theta, axis):
     )
 
 
-def sections(src_dim, tgt_dim):
+def sections(src_dim: int, tgt_dim: int) -> Iterator[Section]:
     """Generate all boundary sections from a source dimension to a target
     dimension. For example, `sections(3,1)` generates all edges on a volume.
 
@@ -116,10 +116,10 @@ def sections(src_dim, tgt_dim):
             args = [None] * src_dim
             for f, i in zip(fixed, indices[::-1]):
                 args[f] = i
-            yield args
+            yield tuple(args)
 
 
-def section_from_index(src_dim, tgt_dim, i):
+def section_from_index(src_dim, tgt_dim, i) -> Section:
     """Return the i'th section from a source dimension to a target dimension.
 
     See :func:`splipy.Utils.sections` for more information.
@@ -127,7 +127,7 @@ def section_from_index(src_dim, tgt_dim, i):
     for j, s in enumerate(sections(src_dim, tgt_dim)):
         if i == j:
             return s
-    return None
+    raise ValueError(f"No such section: {i} for dimensions {src_dim} and {tgt_dim}")
 
 
 def section_to_index(section):

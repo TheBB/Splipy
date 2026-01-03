@@ -451,8 +451,8 @@ class SplineObject:
             delta_knot = old_knots[i + p] - old_knots[i]
 
             # Build index slices: [..., i, ...] and [..., i+1, ...]
-            idx_current = [slice(None)] * self.pardim
-            idx_next = [slice(None)] * self.pardim
+            idx_current: list[slice | int] = [slice(None)] * self.pardim
+            idx_next: list[slice | int] = [slice(None)] * self.pardim
             idx_current[d] = i
             idx_next[d] = i + 1
 
@@ -1038,7 +1038,7 @@ class SplineObject:
 
         return self
 
-    def translate(self, x: ArrayLike) -> Self:
+    def translate(self, x: Point) -> Self:
         """Translate (i.e. move) the object by a given distance.
 
         :param array-like x: The vector to translate by.
