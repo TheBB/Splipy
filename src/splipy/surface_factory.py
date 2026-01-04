@@ -376,8 +376,8 @@ def coons_patch(bottom: Curve, right: Curve, top: Curve, left: Curve) -> Surface
 
 
 def poisson_patch(bottom: Curve, right: Curve, top: Curve, left: Curve) -> Surface:
-    from nutils import function as fn  # type: ignore[import-untyped]
-    from nutils import mesh
+    from nutils import function as fn  # type: ignore[import-untyped,import-not-found,unused-ignore]
+    from nutils import mesh  # type: ignore[import-untyped,import-not-found,unused-ignore]
 
     # error test input
     if left.rational or right.rational or top.rational or bottom.rational:

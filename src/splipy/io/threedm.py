@@ -1,9 +1,12 @@
+# Make type-checking work in cases where rhino3dm is not installed
+# mypy: disable-error-code="no-any-unimported"
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol, Self, cast
 
 import numpy as np
-from rhino3dm import (
+from rhino3dm import (  # type: ignore[import-not-found,unused-ignore]
     Arc,
     BezierCurve,
     Brep,

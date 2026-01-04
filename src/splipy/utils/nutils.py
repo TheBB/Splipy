@@ -44,7 +44,7 @@ def degree(spline: SplineObject) -> list[int]:
 
 def splipy_to_nutils(spline: SplineObject) -> Any:
     """Returns nutils domain and geometry object for spline mapping given by the argument"""
-    from nutils import function, mesh  # type: ignore[import-untyped]
+    from nutils import function, mesh  # type: ignore[import-untyped,import-not-found,unused-ignore]
 
     domain, geom = mesh.rectilinear(spline.knots())
     cp = controlpoints(spline)
