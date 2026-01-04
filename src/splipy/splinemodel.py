@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import bisect
 from collections import Counter, OrderedDict, namedtuple
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
@@ -17,7 +18,6 @@ from splipy.typing import ControlPoints, FloatArray, IntArray, Scalar, Section, 
 from . import state
 from .splineobject import SplineObject
 from .utils import (
-    bisect,
     check_section,
     is_right_hand,
     section_from_index,
@@ -76,7 +76,7 @@ class VertexDict[T](MutableMapping[FloatArray, T]):
     _keys: list[FloatArray | None]
     _values: list[T | None]
 
-    lut: dict[tuple[int, ...], list[tuple[int, float]]]
+    lut: dict[tuple[int, ...], list[tuple[int, Scalar]]]
 
     def __init__(self, rtol: float = 1e-5, atol: float = 1e-8) -> None:
         self.rtol = rtol
