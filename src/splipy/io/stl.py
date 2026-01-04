@@ -148,17 +148,18 @@ class STL(MasterIO):
     def write(self, obj: SplineModel | Surface | Volume, n: int | Sequence[int] | None = None) -> None:
         if isinstance(obj, SplineModel):
             if obj.pardim == 3:  # volume model
-                for surface in obj.boundary():
-                    self.write_surface(surface.obj, n)
+                for node in obj.boundary():
+                    assert isinstance(node.obj, Surface)
+                    self.write_surface(node.obj, n)
             elif obj.pardim == 2:  # surface model
-                for surface in obj.objects():
-                    assert isinstance(surface, Surface)
-                    self.write_surface(surface, n)
+                for comp in obj.objects():
+                    assert isinstance(comp, Surface)
+                    self.write_surface(comp, n)
 
         elif isinstance(obj, Volume):
-            for surface in obj.faces():
-                if surface is not None:  # happens with periodic volumes
-                    self.write_surface(surface, n)
+            for surf in obj.faces():
+                if surf is not None:  # happens with periodic volumes
+                    self.write_surface(surf, n)
 
         elif isinstance(obj, Surface):
             self.write_surface(obj, n)
