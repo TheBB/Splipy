@@ -11,6 +11,8 @@ from .utils import ensure_listlike, sections
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from splipy.typing import Point
+
     from .curve import Curve
     from .surface import Surface
     from .typing import ArrayLike, Direction, FloatArray
@@ -200,7 +202,7 @@ class Volume(SplineObject):
                     result += str(self.controlpoints[i, j, k, :]) + "\n"
         return result
 
-    def get_antiderivative_volume(self, direction: Direction, constant: ArrayLike | None = None) -> Volume:
+    def get_antiderivative_volume(self, direction: Direction, constant: Point | None = None) -> Volume:
         """Compute the antiderivative (integral) of the volume in a given parametric direction.
 
         The antiderivative is computed by inverting the derivative operator on

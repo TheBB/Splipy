@@ -13,6 +13,8 @@ from .utils import check_direction, ensure_listlike, is_singleton, sections
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from splipy.typing import Params, Point
+
     from .typing import ArrayLike, Direction, FloatArray, Scalar
 
 __all__ = ["Surface"]
@@ -49,8 +51,8 @@ class Surface(SplineObject):
 
     def normal(
         self,
-        u: ArrayLike | Scalar,
-        v: ArrayLike | Scalar,
+        u: Params | Scalar,
+        v: Params | Scalar,
         above: bool | Sequence[bool] = True,
         tensor: bool = True,
     ) -> FloatArray:
@@ -107,7 +109,7 @@ class Surface(SplineObject):
 
     def derivative(
         self,
-        *params: ArrayLike | Scalar,
+        *params: Params | Scalar,
         d: int | Sequence[int] = 1,
         above: bool | Sequence[bool] = True,
         tensor: bool = True,
@@ -368,7 +370,7 @@ class Surface(SplineObject):
                 result += str(self.controlpoints[i, j, :]) + "\n"
         return result
 
-    def get_antiderivative_surface(self, direction: Direction, constant: ArrayLike | None = None) -> Surface:
+    def get_antiderivative_surface(self, direction: Direction, constant: Point | None = None) -> Surface:
         """Compute the antiderivative (integral) of the surface in a given parametric direction.
 
         The antiderivative is computed by inverting the derivative operator on

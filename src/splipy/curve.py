@@ -14,7 +14,7 @@ from .utils import ensure_listlike, is_singleton
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
-    from splipy.typing import Point
+    from splipy.typing import Params, Point
 
     from .typing import ArrayLike, Direction, FloatArray, Scalar
 
@@ -48,7 +48,7 @@ class Curve(SplineObject):
         """
         super().__init__([basis], controlpoints, rational, raw=raw)
 
-    def evaluate(self, *params: ArrayLike | Scalar, tensor: bool = True) -> FloatArray:
+    def evaluate(self, *params: Params | Scalar, tensor: bool = True) -> FloatArray:
         """Evaluate the object at given parametric values.
 
         This function returns an *n1* × *n2* × ... × *dim* array, where *ni* is
@@ -88,7 +88,7 @@ class Curve(SplineObject):
 
     def derivative(
         self,
-        *params: ArrayLike | Scalar,
+        *params: Params | Scalar,
         d: int | Sequence[int] = 1,
         above: bool | Sequence[bool] = True,
         tensor: bool = True,
@@ -147,7 +147,7 @@ class Curve(SplineObject):
 
         return result
 
-    def binormal(self, t: ArrayLike | Scalar, above: bool = True) -> FloatArray:
+    def binormal(self, t: Params | Scalar, above: bool = True) -> FloatArray:
         """Evaluate the normalized binormal of the curve at the given parametric value(s).
 
         This function returns an *n* × 3 array, where *n* is the number of
@@ -195,7 +195,7 @@ class Curve(SplineObject):
 
         return result / magnitude
 
-    def normal(self, t: ArrayLike | Scalar, above: bool = True) -> FloatArray:
+    def normal(self, t: Params | Scalar, above: bool = True) -> FloatArray:
         """Evaluate the normal of the curve at the given parametric value(s).
 
         This function returns an *n* × 3 array, where *n* is the number of
@@ -220,7 +220,7 @@ class Curve(SplineObject):
 
         return np.cross(B, T)
 
-    def curvature(self, t: ArrayLike | Scalar, above: bool = True) -> FloatArray | float:
+    def curvature(self, t: Params | Scalar, above: bool = True) -> FloatArray | float:
         """Evaluate the curvaure at specified point(s). The curvature is defined as
 
         .. math:: \\frac{|\\boldsymbol{v}\\times \\boldsymbol{a}|}{|\\boldsymbol{v}|^3}
@@ -244,7 +244,7 @@ class Curve(SplineObject):
         speed: FloatArray = np.linalg.norm(v, axis=-1)
         return magnitude / speed**3
 
-    def torsion(self, t: ArrayLike | Scalar, above: bool = True) -> FloatArray | float:
+    def torsion(self, t: Params | Scalar, above: bool = True) -> FloatArray | float:
         """Evaluate the torsion for a 3D curve at specified point(s). The torsion is defined as
 
         .. math:: \\frac{(\\boldsymbol{v}\\times \\boldsymbol{a})\\cdot
@@ -541,7 +541,7 @@ class Curve(SplineObject):
             err_inf = max(np.max(np.sqrt(error)), err_inf)
         return (np.array(err2, dtype=np.float64), err_inf)
 
-    def get_antiderivative_curve(self, constant: ArrayLike | None = None) -> Curve:
+    def get_antiderivative_curve(self, constant: Point | None = None) -> Curve:
         """Compute the antiderivative (integral) of the curve.
 
         The antiderivative is computed by inverting the derivative operator on

@@ -37,6 +37,7 @@ type IntArray = npt.NDArray[np.integer]
 # Again, these are identical, but we can signal intent to a human reader based
 # on which we use.
 type Knots = Sequence[Scalar] | FloatArray | IntArray
+type Params = Sequence[Scalar] | FloatArray | IntArray
 type Point = Sequence[Scalar] | FloatArray | IntArray
 
 type Direction = Literal["u", "v", "w", "U", "V", "W"] | int

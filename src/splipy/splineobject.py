@@ -25,7 +25,7 @@ from .utils import (
 if TYPE_CHECKING:
     from splipy.typing import ControlPoints, Point
 
-    from .typing import ArrayLike, Direction, FloatArray, Scalar, SectionElement, SectionKwargs
+    from .typing import ArrayLike, Direction, FloatArray, Params, Scalar, SectionElement, SectionKwargs
 
 __all__ = ["SplineObject"]
 
@@ -154,7 +154,7 @@ class SplineObject:
 
     def evaluate(
         self,
-        *params: ArrayLike | Scalar,
+        *params: Params | Scalar,
         tensor: bool = True,
     ) -> FloatArray:
         """Evaluate the object at given parametric values.
@@ -206,7 +206,7 @@ class SplineObject:
 
     def derivative(
         self,
-        *params: ArrayLike | Scalar,
+        *params: Params | Scalar,
         d: int | Sequence[int] = 1,
         above: bool | Sequence[bool] = True,
         tensor: bool = True,
@@ -365,11 +365,11 @@ class SplineObject:
 
     @overload
     def get_antiderivative_spline(
-        self, direction: Direction, constant: ArrayLike | None = None
+        self, direction: Direction, constant: Point | None = None
     ) -> SplineObject: ...
 
     def get_antiderivative_spline(
-        self, direction: Direction | None = None, constant: ArrayLike | None = None
+        self, direction: Direction | None = None, constant: Point | None = None
     ) -> SplineObject | list[SplineObject]:
         """Compute the antiderivative (integral) of the spline object in a given parametric direction.
 
@@ -488,7 +488,7 @@ class SplineObject:
     @overload
     def tangent(
         self,
-        *params: ArrayLike | Scalar,
+        *params: Params | Scalar,
         direction: Direction,
         above: bool | Sequence[bool] = True,
         tensor: bool = True,
@@ -497,7 +497,7 @@ class SplineObject:
     @overload
     def tangent(
         self,
-        *params: ArrayLike | Scalar,
+        *params: Params | Scalar,
         direction: None = None,
         above: bool | Sequence[bool] = True,
         tensor: bool = True,
@@ -505,7 +505,7 @@ class SplineObject:
 
     def tangent(
         self,
-        *params: ArrayLike | Scalar,
+        *params: Params | Scalar,
         direction: Direction | None = None,
         above: bool | Sequence[bool] = True,
         tensor: bool = True,
@@ -783,9 +783,9 @@ class SplineObject:
     def start(self) -> tuple[float, ...]: ...
 
     @overload
-    def start(self, direction: Direction) -> float: ...
+    def start(self, direction: Direction) -> Scalar: ...
 
-    def start(self, direction: Direction | None = None) -> float | tuple[float, ...]:
+    def start(self, direction: Direction | None = None) -> Scalar | tuple[Scalar, ...]:
         """Return the start of the parametric domain.
 
         If `direction` is given, returns the start of that direction, as a
@@ -806,7 +806,7 @@ class SplineObject:
     @overload
     def end(self, direction: Direction) -> float: ...
 
-    def end(self, direction: Direction | None = None) -> float | tuple[float, ...]:
+    def end(self, direction: Direction | None = None) -> Scalar | tuple[Scalar, ...]:
         """Return the end of the parametric domain.
 
         If `direction` is given, returns the end of that direction, as a float.
@@ -919,7 +919,7 @@ class SplineObject:
 
         return self
 
-    def insert_knot(self, knot: Scalar | ArrayLike, direction: Direction = 0) -> Self:
+    def insert_knot(self, knot: Scalar | Params, direction: Direction = 0) -> Self:
         """Insert a new knot into the spline.
 
         :param int direction: The direction to insert in
@@ -988,7 +988,7 @@ class SplineObject:
 
         for n, d in zip(args, directions):
             knots = self.knots(direction=d)  # excluding multiple knots
-            new_knots: list[FloatArray] = []
+            new_knots: list[Scalar] = []
             for k0, k1 in zip(knots[:-1], knots[1:]):
                 new_knots.extend(np.linspace(k0, k1, n + 2)[1:-1])
             self.insert_knot(new_knots, d)

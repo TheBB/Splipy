@@ -28,7 +28,7 @@ from .utils import (
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from splipy.typing import FloatArray, Knots, Point, Points
+    from splipy.typing import FloatArray, Params, Point, Points
 
     from .typing import Scalar
 
@@ -94,14 +94,14 @@ def line(a: Point, b: Point, relative: bool = False) -> Curve:
 
 
 @overload
-def polygon(*points: Point, t: Knots | None = None, relative: bool = False) -> Curve: ...
+def polygon(*points: Point, t: Params | None = None, relative: bool = False) -> Curve: ...
 
 
 @overload
-def polygon(points: Points, /, *, t: Knots | None = None, relative: bool = False) -> Curve: ...
+def polygon(points: Points, /, *, t: Params | None = None, relative: bool = False) -> Curve: ...
 
 
-def polygon(*points_in: Point | Points, t: Knots | None = None, relative: bool = False) -> Curve:
+def polygon(*points_in: Point | Points, t: Params | None = None, relative: bool = False) -> Curve:
     """Create a linear interpolation between input points.
 
     :param [array-like] points: The points to interpolate
@@ -349,7 +349,7 @@ def circle_segment(
     return flip_and_move_plane_geometry(result, center, normal)
 
 
-def interpolate(x: Points, basis: BSplineBasis, t: Knots | None = None) -> Curve:
+def interpolate(x: Points, basis: BSplineBasis, t: Params | None = None) -> Curve:
     """Perform general spline interpolation on a provided basis.
 
     :param matrix-like x: Matrix *X[i,j]* of interpolation points *xi* with
@@ -374,7 +374,7 @@ def interpolate(x: Points, basis: BSplineBasis, t: Knots | None = None) -> Curve
     return Curve(basis, cp)
 
 
-def least_square_fit(x: Points, basis: BSplineBasis, t: Knots) -> Curve:
+def least_square_fit(x: Points, basis: BSplineBasis, t: Params) -> Curve:
     """Perform a least-square fit of a point cloud onto a spline basis
 
     :param matrix-like x: Matrix *X[i,j]* of interpolation points *xi* with
@@ -398,7 +398,7 @@ def least_square_fit(x: Points, basis: BSplineBasis, t: Knots) -> Curve:
 def cubic_curve(
     x: Points,
     boundary: Boundary = Boundary.FREE,
-    t: Knots | None = None,
+    t: Params | None = None,
     tangents: Points | None = None,
 ) -> Curve:
     """Perform cubic spline interpolation on a provided basis.
@@ -742,7 +742,7 @@ def fit(
     return crv
 
 
-def fit_points(x: Points, t: Knots | None = None, rtol: Scalar = 1e-4, atol: Scalar = 0.0) -> Curve:
+def fit_points(x: Points, t: Params | None = None, rtol: Scalar = 1e-4, atol: Scalar = 0.0) -> Curve:
     """Computes an approximation for a list of points up to a specified tolerance.
     The method will iteratively refine parts where needed resulting in a non-uniform
     knot vector with as optimized knot locations as possible. The target curve is the

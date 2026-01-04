@@ -15,7 +15,7 @@ from . import state
 from .utils import ensure_listlike
 
 if TYPE_CHECKING:
-    from splipy.typing import Knots
+    from splipy.typing import Knots, Params
 
     from .typing import FloatArray, Int, Scalar
 
@@ -90,16 +90,16 @@ class BSplineBasis:
         .. warning:: This is different from :func:`splipy.BSplineBasis.__len__`."""
         return len(self.knots) - self.order - (self.periodic + 1)
 
-    def start(self) -> float:
+    def start(self) -> Scalar:
         """Start point of parametric domain. For open knot vectors, this is the
         first knot.
 
         :return: Knot number *p*, where *p* is the spline order
         :rtype: float
         """
-        return float(self.knots.flat[self.order - 1])
+        return self.knots.flat[self.order - 1]
 
-    def end(self) -> float:
+    def end(self) -> Scalar:
         """End point of parametric domain. For open knot vectors, this is the
         last knot.
 
@@ -107,7 +107,7 @@ class BSplineBasis:
             the number of knots
         :rtype: Float
         """
-        return float(self.knots.flat[-self.order])
+        return self.knots.flat[-self.order]
 
     def greville_all(self) -> FloatArray:
         """Fetch all greville points, also known as knot averages:
@@ -153,7 +153,7 @@ class BSplineBasis:
     @overload
     def evaluate(
         self,
-        t: Knots | Scalar,
+        t: Params | Scalar,
         d: int = 0,
         from_right: bool = ...,
     ) -> npt.NDArray[np.double]: ...
@@ -161,7 +161,7 @@ class BSplineBasis:
     @overload
     def evaluate(
         self,
-        t: Knots | Scalar,
+        t: Params | Scalar,
         d: int = 0,
         from_right: bool = ...,
         sparse: Literal[False] = ...,
@@ -170,7 +170,7 @@ class BSplineBasis:
     @overload
     def evaluate(
         self,
-        t: Knots | Scalar,
+        t: Params | Scalar,
         d: int = 0,
         from_right: bool = ...,
         sparse: Literal[True] = ...,
@@ -178,7 +178,7 @@ class BSplineBasis:
 
     def evaluate(
         self,
-        t: Knots | Scalar,
+        t: Params | Scalar,
         d: int = 0,
         from_right: bool = True,
         sparse: bool = False,

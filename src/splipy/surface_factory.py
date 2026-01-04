@@ -21,7 +21,7 @@ from .utils.nutils import controlpoints, degree, multiplicities
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
-    from splipy.typing import FloatArray, Knots, Point, Scalar
+    from splipy.typing import FloatArray, Params, Point, Scalar
 
 __all__ = [
     "square",
@@ -823,7 +823,7 @@ def loft(*in_curves: Curve | Sequence[Curve]) -> Surface:
 def interpolate(
     x: FloatArray,
     bases: Sequence[BSplineBasis],
-    u: Sequence[Knots] | None = None,
+    u: Sequence[Params] | None = None,
 ) -> Surface:
     """Interpolate a surface on a set of regular gridded interpolation points `x`.
 
@@ -853,7 +853,7 @@ def interpolate(
     return Surface(bases[0], bases[1], cp.transpose(1, 0, 2).reshape((np.prod(surf_shape), dim)))
 
 
-def least_square_fit(x: FloatArray, bases: Sequence[BSplineBasis], u: Sequence[Knots]) -> Surface:
+def least_square_fit(x: FloatArray, bases: Sequence[BSplineBasis], u: Sequence[Params]) -> Surface:
     """Perform a least-square fit of a point cloud `x` onto a spline basis.
 
     The points can be either a matrix (in which case the first index is
