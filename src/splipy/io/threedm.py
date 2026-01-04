@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Protocol, Self, cast
+from typing import TYPE_CHECKING, Any, Protocol, Self, Sequence, cast
 
 import numpy as np
 from rhino3dm import (
@@ -26,6 +26,7 @@ from rhino3dm import Curve as threedmCurve  # name conflict with splipy
 from rhino3dm import Surface as threedmSurface  # name conflict with splipy
 
 from splipy import BSplineBasis, Curve, Surface, curve_factory
+from splipy.splinemodel import SplineModel
 
 from .master import MasterIO
 
@@ -63,7 +64,7 @@ class ThreeDM(MasterIO):
     def __enter__(self) -> Self:
         return self
 
-    def write(self, _: SplineObject) -> None:
+    def write(self, _: SplineObject | Sequence[SplineObject] | SplineModel) -> None:
         raise OSError("Writing to 3DM not supported")
 
     def read(self) -> list[SplineObject]:

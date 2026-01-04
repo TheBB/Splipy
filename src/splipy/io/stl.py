@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, BinaryIO, Self, TextIO
 import numpy as np
 
 from splipy.splinemodel import SplineModel
+from splipy.splineobject import SplineObject
 from splipy.surface import Surface
 from splipy.utils import ensure_listlike
 from splipy.volume import Volume
@@ -145,7 +146,7 @@ class STL(MasterIO):
             self.writer = ASCII_STL_Writer(Path(self.filename).open("w"))
         return self
 
-    def write(self, obj: SplineModel | Surface | Volume, n: int | Sequence[int] | None = None) -> None:
+    def write(self, obj: SplineObject | Sequence[SplineObject] | SplineModel, n: int | Sequence[int] | None = None) -> None:
         if isinstance(obj, SplineModel):
             if obj.pardim == 3:  # volume model
                 for node in obj.boundary():
@@ -164,8 +165,12 @@ class STL(MasterIO):
         elif isinstance(obj, Surface):
             self.write_surface(obj, n)
 
-        else:
+        elif isinstance(obj, SplineObject):
             raise ValueError("Unsopported object for STL format")
+
+        else:
+            for sub in obj:
+                self.write(sub)
 
     def write_surface(self, surface: Surface, n: int | Sequence[int] | None = None) -> None:
         # choose evaluation points as one of three cases:

@@ -168,7 +168,7 @@ class DiscontBoxMesh:
         return self.Xz
 
 
-class GRDECL(MasterIO):
+class GRDECL:
     filename: str
     attribute: dict[str, FloatArray | IntArray]
     fstream: TextIO
