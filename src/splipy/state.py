@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import sys
 from contextlib import contextmanager
-from typing import Iterator, TypedDict, Unpack
+from typing import TYPE_CHECKING, TypedDict, Unpack
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 states = [
     "controlpoint_relative_tolerance",

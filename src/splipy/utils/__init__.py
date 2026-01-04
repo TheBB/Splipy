@@ -1,22 +1,21 @@
 from __future__ import annotations
 
-from collections.abc import Iterator, Sequence, Sized
+from collections.abc import Iterable, Iterator, Sequence, Sized
 from itertools import combinations, product, repeat
 from math import atan2, sqrt
-from typing import TYPE_CHECKING, Any, Iterable, Literal, SupportsFloat, TypeVar, Unpack, cast
+from typing import TYPE_CHECKING, Any, Literal, SupportsFloat, TypeVar, Unpack, cast
 
 import numpy as np
-
-from splipy.typing import Int, Knots, Scalar
 
 if TYPE_CHECKING:
     from splipy.splineobject import SplineObject
     from splipy.typing import (
         Direction,
         FloatArray,
-        IntArray,
+        Int,
         Point,
         Points,
+        Scalar,
         Section,
         SectionElement,
         SectionKwargs,
@@ -281,14 +280,7 @@ def uniquify[T](iterator: Iterable[T]) -> Iterator[T]:
         yield i
 
 
-def raise_order_1D(
-    n: int,
-    k: int,
-    T: FloatArray,
-    P: FloatArray,
-    m: int,
-    periodic: int
-) -> FloatArray:
+def raise_order_1D(n: int, k: int, T: FloatArray, P: FloatArray, m: int, periodic: int) -> FloatArray:
     """Implementation of method in "Efficient Degree Elevation and Knot
     Insertion for B-spline Curves using Derivatives" by Qi-Xing Huang a Shi-Min
     Hu, Ralph R Martin. Only the case of open knot vector is fully implemented.

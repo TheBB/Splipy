@@ -19,7 +19,6 @@ from splipy.utils import ensure_listlike
 from splipy.volume import Volume
 
 from .g2 import G2
-from .master import MasterIO
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

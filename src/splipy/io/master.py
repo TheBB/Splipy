@@ -1,9 +1,13 @@
 from __future__ import annotations
-from types import TracebackType
-from typing import Self, Sequence
 
-from splipy.splinemodel import SplineModel
-from splipy.splineobject import SplineObject
+from typing import TYPE_CHECKING, Self
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from types import TracebackType
+
+    from splipy.splinemodel import SplineModel
+    from splipy.splineobject import SplineObject
 
 
 class MasterIO:

@@ -138,7 +138,6 @@ class BSplineBasis:
     @overload
     def greville(self) -> FloatArray: ...
 
-
     def greville(self, index: Int | None = None) -> float | FloatArray:
         """Fetch greville points, also known as knot averages:
 

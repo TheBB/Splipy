@@ -1,19 +1,26 @@
 from __future__ import annotations
 
 import bisect
-from collections import Counter, OrderedDict, namedtuple
-from collections.abc import Callable, Iterator
+from collections import Counter, OrderedDict
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
 from itertools import chain, islice, permutations, product
 from operator import itemgetter
 from pathlib import Path
-from re import S
-from typing import Any, Sequence, Unpack, cast, overload
+from typing import Any, Unpack, cast
 
 import numpy as np
 import numpy.typing as npt
 
-from splipy.typing import ControlPoints, FloatArray, IntArray, Scalar, Section, Int, SectionElement, SectionKwargs
+from splipy.typing import (
+    FloatArray,
+    Int,
+    IntArray,
+    Scalar,
+    Section,
+    SectionElement,
+    SectionKwargs,
+)
 
 from . import state
 from .splineobject import SplineObject
@@ -181,6 +188,7 @@ class OrientationError(RuntimeError):
     :class:`splipy.SplineModel.Orientation` indicating an inability to match
     two objects.
     """
+
     pass
 
 
@@ -188,6 +196,7 @@ class TwinError(RuntimeError):
     """A `TwinError` is raised when two objects with identical interfaces
     are added, but different interiors.
     """
+
     pass
 
 
@@ -426,12 +435,7 @@ class TopologicalNode:
     cell_numbers: IntArray | None
     cp_numbers: IntArray | None
 
-    def __init__(
-        self,
-        obj: SplineObject,
-        lower_nodes: list[tuple[TopologicalNode, ...]],
-        index: int
-    ) -> None:
+    def __init__(self, obj: SplineObject, lower_nodes: list[tuple[TopologicalNode, ...]], index: int) -> None:
         """Initialize a `TopologicalNode` object associated with the given
         `SplineObject` and lower order nodes.
 

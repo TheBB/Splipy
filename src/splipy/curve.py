@@ -6,8 +6,6 @@ from typing import TYPE_CHECKING, ClassVar, Self, cast
 import numpy as np
 import scipy.sparse.linalg as splinalg
 
-from splipy.typing import Point
-
 from . import state
 from .basis import BSplineBasis
 from .splineobject import SplineObject
@@ -15,6 +13,8 @@ from .utils import ensure_listlike, is_singleton
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
+
+    from splipy.typing import Point
 
     from .typing import ArrayLike, Direction, FloatArray, Scalar
 

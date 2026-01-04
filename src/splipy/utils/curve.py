@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from itertools import repeat
-
-from splipy.curve import Curve
-from splipy.typing import FloatArray, Points
-
 __doc__ = "Implementation of various curve utilities"
 
+from typing import TYPE_CHECKING
+
 import numpy as np
+
+if TYPE_CHECKING:
+    from splipy.curve import Curve
+    from splipy.typing import FloatArray, Points
 
 
 def curve_length_parametrization(pts: Points, normalize: bool = False, reps: int = 1) -> FloatArray:
@@ -26,10 +27,10 @@ def curve_length_parametrization(pts: Points, normalize: bool = False, reps: int
 
     distances = np.linalg.norm(points[1:, ...] - points[:-1, ...], axis=1)
     distances = np.cumsum(distances)
-    knots[reps:reps-1+npts] = distances
+    knots[reps : reps - 1 + npts] = distances
 
     if reps > 1:
-        knots[-reps+1:] = knots[-reps]
+        knots[-reps + 1 :] = knots[-reps]
 
     if normalize:
         knots /= knots[-1]

@@ -146,7 +146,9 @@ class STL(MasterIO):
             self.writer = ASCII_STL_Writer(Path(self.filename).open("w"))
         return self
 
-    def write(self, obj: SplineObject | Sequence[SplineObject] | SplineModel, n: int | Sequence[int] | None = None) -> None:
+    def write(
+        self, obj: SplineObject | Sequence[SplineObject] | SplineModel, n: int | Sequence[int] | None = None
+    ) -> None:
         if isinstance(obj, SplineModel):
             if obj.pardim == 3:  # volume model
                 for node in obj.boundary():

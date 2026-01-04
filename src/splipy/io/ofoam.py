@@ -3,12 +3,14 @@ from __future__ import annotations
 from itertools import groupby
 from operator import itemgetter
 from pathlib import Path
-from types import TracebackType
-from typing import Self
+from typing import TYPE_CHECKING, Self
 
 import numpy as np
 
 from splipy.splinemodel import FaceArray, SplineModel
+
+if TYPE_CHECKING:
+    from types import TracebackType
 
 
 class OpenFOAM:
@@ -58,7 +60,7 @@ class OpenFOAM:
         model.generate_cp_numbers()
         model.generate_cell_numbers()
         faces = model.faces()
-        ninternal = sum(faces.name == None)
+        ninternal = sum(faces.name is None)
         note = (
             f"nPoints: {model.ncps} nCells: {model.ncells} nFaces: {len(faces)} nInternalFaces: {ninternal}"
         )

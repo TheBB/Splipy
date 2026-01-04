@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Protocol, Self, Sequence, cast
+from typing import TYPE_CHECKING, Any, Protocol, Self, cast
 
 import numpy as np
 from rhino3dm import (
@@ -26,14 +26,14 @@ from rhino3dm import Curve as threedmCurve  # name conflict with splipy
 from rhino3dm import Surface as threedmSurface  # name conflict with splipy
 
 from splipy import BSplineBasis, Curve, Surface, curve_factory
-from splipy.splinemodel import SplineModel
 
 from .master import MasterIO
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Sequence
     from types import TracebackType
 
+    from splipy.splinemodel import SplineModel
     from splipy.splineobject import SplineObject
     from splipy.typing import Point
 
