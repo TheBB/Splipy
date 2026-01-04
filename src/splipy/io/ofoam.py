@@ -60,7 +60,7 @@ class OpenFOAM:
         model.generate_cp_numbers()
         model.generate_cell_numbers()
         faces = model.faces()
-        ninternal = sum(faces.name is None)
+        ninternal = sum(faces.name == None)  # noqa: E711
         note = (
             f"nPoints: {model.ncps} nCells: {model.ncells} nFaces: {len(faces)} nInternalFaces: {ninternal}"
         )
