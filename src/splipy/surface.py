@@ -144,11 +144,8 @@ class Surface(SplineObject):
 
         u = np.atleast_1d(np.asarray(u, dtype=np.float64))
         v = np.atleast_1d(np.asarray(v, dtype=np.float64))
-        # u = ensure_listlike_old(u)
-        # v = ensure_listlike_old(v)
+
         result: FloatArray = np.zeros((len(u), len(v), self.dimension))
-        # dNus = [self.bases[0].evaluate(u, d, above) for d in range(derivs[0]+1)]
-        # dNvs = [self.bases[1].evaluate(v, d, above) for d in range(derivs[1]+1)]
         dNus = [self.bases[0].evaluate(u, d, above[0]) for d in range(np.sum(derivs) + 1)]
         dNvs = [self.bases[1].evaluate(v, d, above[1]) for d in range(np.sum(derivs) + 1)]
 

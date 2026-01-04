@@ -12,7 +12,7 @@ from deprecated import deprecated
 from scipy.sparse import csr_matrix
 
 from . import state
-from .utils import ensure_listlike_old
+from .utils import ensure_listlike
 
 if TYPE_CHECKING:
     from splipy.typing import Knots
@@ -229,7 +229,7 @@ class BSplineBasis:
         :rtype: numpy.array
         """
         # for single-value input, wrap it into a list so it don't crash on the loop below
-        t = ensure_listlike_old(t)
+        t = ensure_listlike(t)
         self.snap(t)
 
         p = self.order  # knot vector order

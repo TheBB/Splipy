@@ -1139,7 +1139,7 @@ class SplineObject:
 
         return self
 
-    def rotate(self, theta: float, normal: ArrayLike = (0, 0, 1)) -> Self:
+    def rotate(self, theta: Scalar, normal: ArrayLike = (0, 0, 1)) -> Self:
         """Rotate the object around an axis.
 
         :param float theta: Angle to rotate about, measured in radians
