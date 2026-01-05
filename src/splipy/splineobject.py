@@ -141,17 +141,6 @@ class SplineObject:
             if b.periodic < 0 and (np.min(p) < b.start() or b.end() < np.max(p)):
                 raise ValueError("Evaluation outside parametric domain")
 
-    # TODO(Eivind): Remove this method
-    def _validate_domain_old(self, *params):  # type: ignore[no-untyped-def]
-        """Check whether the given evaluation parameters are valid.
-
-        :raises ValueError: If the parameters are outside the domain
-        """
-        for b, p in zip(self.bases, params):
-            b.snap(p)
-            if b.periodic < 0 and (min(p) < b.start() or b.end() < max(p)):
-                raise ValueError("Evaluation outside parametric domain")
-
     def evaluate(
         self,
         *params: Params | Scalar,
