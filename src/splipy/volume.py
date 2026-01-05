@@ -11,11 +11,11 @@ from .utils import ensure_listlike, sections
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from splipy.typing import Point
+    from splipy.typing import Point, Scalar
 
     from .curve import Curve
     from .surface import Surface
-    from .typing import ArrayLike, Direction, FloatArray
+    from .typing import ArrayLike, Direction
 
 __all__ = ["Volume"]
 
@@ -102,17 +102,13 @@ class Volume(SplineObject):
             tuple(boundary_faces),
         )
 
-    def volume(self) -> float:
+    def volume(self) -> Scalar:
         """Computes the volume of the object in geometric space"""
-
-        w1: FloatArray
-        w2: FloatArray
-        w3: FloatArray
-
         # fetch integration points
         (x1, w1) = np.polynomial.legendre.leggauss(self.order(0) + 1)
         (x2, w2) = np.polynomial.legendre.leggauss(self.order(1) + 1)
         (x3, w3) = np.polynomial.legendre.leggauss(self.order(2) + 1)
+
         # map points to parametric coordinates (and update the weights)
         (knots1, knots2, knots3) = self.knots()
         u = np.array([(x1 + 1) / 2 * (t1 - t0) + t0 for t0, t1 in zip(knots1[:-1], knots1[1:])])
@@ -141,7 +137,7 @@ class Volume(SplineObject):
 
         J = du[:, :, :, 0] * c1 - du[:, :, :, 1] * c2 + du[:, :, :, 2] * c3
 
-        return float(np.abs(J).dot(w3).dot(w2).dot(w1))
+        return np.abs(J).dot(w3).dot(w2).dot(w1)  # type: ignore[no-any-return]
 
     def rebuild(self, p: int | Sequence[int], n: int | Sequence[int]) -> Volume:
         """Creates an approximation to this volume by resampling it using

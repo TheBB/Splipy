@@ -12,7 +12,7 @@ from splipy.volume import Volume
 
 if TYPE_CHECKING:
     from splipy.splineobject import SplineObject
-    from splipy.typing import FloatArray
+    from splipy.typing import FloatArray, Scalar
 
 
 def controlpoints(spline: SplineObject) -> FloatArray:
@@ -28,7 +28,7 @@ def controlpoints(spline: SplineObject) -> FloatArray:
     raise RuntimeError("Non-spline argument detected")
 
 
-def multiplicities(spline: SplineObject) -> list[list[float]]:
+def multiplicities(spline: SplineObject) -> list[list[Scalar]]:
     """Returns the multiplicity of the knots at all knot values as a 2D array for
     all parametric directions, for all knots"""
     return [

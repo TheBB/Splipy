@@ -220,7 +220,7 @@ class Curve(SplineObject):
 
         return np.cross(B, T)
 
-    def curvature(self, t: Params | Scalar, above: bool = True) -> FloatArray | float:
+    def curvature(self, t: Params | Scalar, above: bool = True) -> FloatArray | Scalar:
         """Evaluate the curvaure at specified point(s). The curvature is defined as
 
         .. math:: \\frac{|\\boldsymbol{v}\\times \\boldsymbol{a}|}{|\\boldsymbol{v}|^3}
@@ -238,7 +238,7 @@ class Curve(SplineObject):
         w = v[..., 0] * a[..., 1] - v[..., 1] * a[..., 0] if self.dimension == 2 else np.cross(v, a)
 
         if len(v.shape) == 1:  # single evaluation point
-            return float(np.linalg.norm(w) / np.linalg.norm(v))
+            return np.linalg.norm(w) / np.linalg.norm(v)
 
         magnitude: FloatArray = np.abs(w) if self.dimension == 2 else np.linalg.norm(w, axis=-1)
         speed: FloatArray = np.linalg.norm(v, axis=-1)
@@ -269,11 +269,7 @@ class Curve(SplineObject):
         da = self.derivative(t, d=3, above=above)
         w = np.cross(v, a)
 
-        # magnitude: float = float(np.linalg.norm(w))
-        # magnitude: FloatArray = np.linalg.norm(w) if v.ndim == 1 else np.linalg.norm(w, axis=-1)
-
         if v.ndim == 1:  # single evaluation point
-            # magnitude = np.linalg.norm(w)
             dot: FloatArray = np.dot(w, a)
             return dot / np.linalg.norm(w) ** 2
 
@@ -368,7 +364,7 @@ class Curve(SplineObject):
         """
         return self.bases[0].knot_continuity(knot)
 
-    def continuity(self, knot: Scalar) -> int | float:
+    def continuity(self, knot: Scalar) -> int | Scalar:
         """Get the parametric continuity of the curve at a given point. Will
         return p-1-m, where m is the knot multiplicity and inf between knots"""
         return self.bases[0].continuity(knot)
@@ -378,7 +374,7 @@ class Curve(SplineObject):
         continuity"""
         return np.array([k for k in self.knots(0) if self.continuity(k) < 1], dtype=np.float64)
 
-    def length(self, t0: Scalar | None = None, t1: Scalar | None = None) -> float:
+    def length(self, t0: Scalar | None = None, t1: Scalar | None = None) -> Scalar:
         """Computes the euclidian length of the curve in geometric space
 
         .. math:: \\int_{t_0}^{t_1} \\left\\| \\frac{d\\boldsymbol{x}}{dt}(t) \\right\\| \\, dt
@@ -391,12 +387,10 @@ class Curve(SplineObject):
         (x, w) = np.polynomial.legendre.leggauss(quadrature_points)
         # keep only integration boundaries within given start (t0) and stop (t1) interval
         if t0 is not None:
-            t0 = float(t0)
             i = bisect_left(knots, t0)
             knots = np.insert(knots, i, t0)
             knots = knots[i:]
         if t1 is not None:
-            t1 = float(t1)
             i = bisect_right(knots, t1)
             knots = knots[:i]
             knots = np.insert(knots, i, t1)
@@ -407,7 +401,7 @@ class Curve(SplineObject):
         w = np.array([w / 2 * (t1 - t0) for t0, t1 in zip(knots[:-1], knots[1:])], dtype=np.float64).flatten()
         dx = self.derivative(t)
         detJ = np.sqrt(np.sum(dx**2, axis=1))
-        return float(np.dot(detJ, w))
+        return np.dot(detJ, w)  # type: ignore[no-any-return]
 
     def rebuild(self, p: int, n: int) -> Curve:
         """Creates an approximation to this curve by resampling it using a
@@ -457,7 +451,7 @@ class Curve(SplineObject):
                     t = t1
         return self(t), t
 
-    def closest_point(self, pt: Point, t0: Scalar | None = None) -> tuple[FloatArray, float]:
+    def closest_point(self, pt: Point, t0: Scalar | None = None) -> tuple[FloatArray, Scalar]:
         """Computes the closest point on this curve to a given point. This is done by newton iteration
         and is using the state variables `controlpoint_absolute_tolerance` and
         `controlpoint_relative_tolerance` to determine convergence; but limited to 15 iterations.

@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Iterator, Sequence, Sized
 from itertools import combinations, product, repeat
 from math import atan2, sqrt
-from typing import TYPE_CHECKING, Any, Literal, SupportsFloat, Unpack, cast
+from typing import TYPE_CHECKING, Any, Literal, Unpack, cast
 
 import numpy as np
 
@@ -23,8 +23,8 @@ if TYPE_CHECKING:
 
 
 def knot_vector(
-    start: SupportsFloat = 0.0,
-    end: SupportsFloat | None = None,
+    start: Scalar = 0.0,
+    end: Scalar | None = None,
     num_intervals: int | None = None,
     interior_reps: int = 1,
     endpoint_reps: int = 1,
@@ -34,17 +34,17 @@ def knot_vector(
 
     if end is None:
         assert num_intervals is not None
-        end = float(start) + num_intervals
+        end = start + num_intervals
     elif num_intervals is None:
-        num_intervals = int(float(end) - float(start))
+        num_intervals = int(end - start)
 
-    def iter() -> Iterator[float]:
-        yield from repeat(float(start), endpoint_reps)
+    def iter() -> Iterator[Scalar]:
+        yield from repeat(start, endpoint_reps)
         for i in range(1, num_intervals):
             a = i / num_intervals
-            val = float(start) * (1 - a) + float(end) * a
+            val = start * (1 - a) + end * a
             yield from repeat(val, interior_reps)
-        yield from repeat(float(end), endpoint_reps)
+        yield from repeat(end, endpoint_reps)
 
     count = interior_reps * (num_intervals - 1) + endpoint_reps * 2
     return np.fromiter(iter(), dtype=np.float64, count=count)

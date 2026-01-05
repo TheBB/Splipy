@@ -331,7 +331,7 @@ def circle_segment(
     knot = knot_vector(0, theta, num_intervals=knot_spans, interior_reps=2, endpoint_reps=3)
 
     n = (knot_spans - 1) * 2 + 3  # number of control points needed
-    dt = float(theta) / knot_spans / 2  # angle step
+    dt = theta / knot_spans / 2  # angle step
     cp = np.column_stack(
         [
             r * np.cos(np.arange(n) * dt),

@@ -246,12 +246,8 @@ class Surface(SplineObject):
 
         return result
 
-    def area(self) -> float:
+    def area(self) -> Scalar:
         """Computes the area of the surface in geometric space"""
-
-        w1: FloatArray
-        w2: FloatArray
-
         # fetch integration points
         (x1, w1) = np.polynomial.legendre.leggauss(self.order(0) + 1)
         (x2, w2) = np.polynomial.legendre.leggauss(self.order(1) + 1)
@@ -276,7 +272,7 @@ class Surface(SplineObject):
         J = du[..., 0] * dv[..., 1] - du[..., 1] * dv[..., 0] if self.dimension == 2 else np.cross(du, dv)
 
         J = np.sqrt(np.sum(J**2, axis=2)) if self.dimension == 3 else np.abs(J)
-        return float(w1.dot(J).dot(w2))
+        return w1.dot(J).dot(w2)  # type: ignore[no-any-return]
 
     def edges(self) -> tuple[Curve, Curve, Curve, Curve]:
         """Return the four edge curves in (parametric) order: umin, umax, vmin, vmax

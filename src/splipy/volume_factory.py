@@ -139,7 +139,6 @@ def revolve(surf: Surface, theta: Scalar = 2 * pi, axis: Point = (0, 0, 1)) -> V
     surf = surf.clone()  # clone input surface, throw away old reference
     surf.set_dimension(3)  # add z-components (if not already present)
     surf.force_rational()  # add weight (if not already present)
-    theta = float(theta)
 
     axis_np = np.asarray(axis, dtype=float)
 
@@ -192,7 +191,7 @@ def torus(
 
     disc = surface_factory.disc(minor_r, type=type)
     disc.rotate(pi / 2, (1, 0, 0))  # flip up into xz-plane
-    disc.translate((float(major_r), 0, 0))  # move into position to spin around z-axis
+    disc.translate((major_r, 0, 0))  # move into position to spin around z-axis
     result = revolve(disc)
 
     result.rotate(rotate_local_x_axis(xaxis, normal))

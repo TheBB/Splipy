@@ -120,7 +120,7 @@ class BSplineBasis:
         operator = np.ones((self.order - 1,), dtype=np.float64) / (self.order - 1)
         return np.convolve(self.knots[1 : -1 - (self.periodic + 1)], operator, mode="valid")
 
-    def greville_single(self, index: Int) -> float:
+    def greville_single(self, index: Int) -> Scalar:
         """Fetch a greville point, also known as a knot averages:
 
         .. math:: \\sum_{j=i+1}^{i+p-1} \\frac{t_j}{p-1}
@@ -130,15 +130,15 @@ class BSplineBasis:
         :return: A Greville point
         :rtype: float
         """
-        return float(np.sum(self.knots[index + 1 : index + self.order]) / (self.order - 1))
+        return np.sum(self.knots[index + 1 : index + self.order]) / (self.order - 1)
 
     @overload
-    def greville(self, index: Int) -> float: ...
+    def greville(self, index: Int) -> Scalar: ...
 
     @overload
     def greville(self) -> FloatArray: ...
 
-    def greville(self, index: Int | None = None) -> float | FloatArray:
+    def greville(self, index: Int | None = None) -> Scalar | FloatArray:
         """Fetch greville points, also known as knot averages:
 
         .. math:: \\sum_{j=i+1}^{i+p-1} \\frac{t_j}{p-1}
@@ -266,10 +266,10 @@ class BSplineBasis:
                 for j in range(p - q - 1, p):
                     k = mu - p + j  # 'i'-index in global knot vector (ref Hughes book pg.21)
                     if j != p - q - 1:
-                        M[j] = M[j] * float(evalT - self.knots[k]) / (self.knots[k + q] - self.knots[k])
+                        M[j] = M[j] * (evalT - self.knots[k]) / (self.knots[k + q] - self.knots[k])
 
                     if j != p - 1:
-                        M[j] = M[j] + M[j + 1] * float(self.knots[k + q + 1] - evalT) / (
+                        M[j] = M[j] + M[j + 1] * (self.knots[k + q + 1] - evalT) / (
                             self.knots[k + q + 1] - self.knots[k + 1]
                         )
 
@@ -277,9 +277,9 @@ class BSplineBasis:
                 for j in range(p - q - 1, p):
                     k = mu - p + j  # 'i'-index in global knot vector (ref Hughes book pg.21)
                     if j != p - q - 1:
-                        M[j] = M[j] * float(q) / (self.knots[k + q] - self.knots[k])
+                        M[j] = M[j] * q / (self.knots[k + q] - self.knots[k])
                     if j != p - 1:
-                        M[j] = M[j] - M[j + 1] * float(q) / (self.knots[k + q + 1] - self.knots[k + 1])
+                        M[j] = M[j] - M[j + 1] * q / (self.knots[k + q + 1] - self.knots[k + 1])
 
             data[i * p : (i + 1) * p] = M
             indices[i * p : (i + 1) * p] = np.arange(mu - p, mu) % n
@@ -334,9 +334,6 @@ class BSplineBasis:
 
         :raises ValueError: If *end* ≤ *start*
         """
-        start = float(start)
-        end = float(end)
-
         if end <= start:
             raise ValueError("end must be larger than start")
         self.normalize()
@@ -359,8 +356,6 @@ class BSplineBasis:
             knots.
         :rtype: int or float
         """
-        knot = float(knot)
-
         if self.periodic >= 0:
             if knot < self.start() or knot > self.end():
                 knot = (knot - self.start()) % (self.end() - self.start()) + self.start()
@@ -377,7 +372,7 @@ class BSplineBasis:
             raise NotAKnotError
         return self.order - (hi - lo) - 1
 
-    def continuity(self, knot: Scalar) -> int | float:
+    def continuity(self, knot: Scalar) -> int | Scalar:
         """Get the continuity of the basis functions at a given point.
 
         :return: *p*--*m*--1 at a knot with multiplicity *m*, or ``inf``
@@ -512,8 +507,6 @@ class BSplineBasis:
         :rtype: numpy.array
         :raises ValueError: If the new knot is outside the domain
         """
-        new_knot = float(new_knot)
-
         if self.periodic >= 0:
             if new_knot < self.start() or new_knot > self.end():
                 new_knot = (new_knot - self.start()) % (self.end() - self.start()) + self.start()
@@ -639,24 +632,24 @@ class BSplineBasis:
         """Returns the number of knots in this basis."""
         return len(self.knots)
 
-    def __getitem__(self, i: int) -> float:
+    def __getitem__(self, i: int) -> Scalar:
         """Returns the knot at a given index."""
-        return float(self.knots[i])
+        return self.knots[i]  # type: ignore[no-any-return]
 
     def __iadd__(self, a: Scalar) -> Self:
-        self.knots += float(a)
+        self.knots += a
         return self
 
     def __isub__(self, a: Scalar) -> Self:
-        self.knots -= float(a)
+        self.knots -= a
         return self
 
     def __imul__(self, a: Scalar) -> Self:
-        self.knots *= float(a)
+        self.knots *= a
         return self
 
     def __itruediv__(self, a: Scalar) -> Self:
-        self.knots /= float(a)
+        self.knots /= a
         return self
 
     __ifloordiv__ = __itruediv__  # integer division (should not distinguish)

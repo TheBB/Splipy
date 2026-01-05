@@ -333,14 +333,14 @@ class SplineObject:
         if self.bases[d].periodic < 0:
             C = np.zeros((n - 1, n))
             for i in range(n - 1):
-                C[i, i] = -float(p) / (k[i + p + 1] - k[i + 1])
-                C[i, i + 1] = float(p) / (k[i + p + 1] - k[i + 1])
+                C[i, i] = -p / (k[i + p + 1] - k[i + 1])
+                C[i, i + 1] = p / (k[i + p + 1] - k[i + 1])
         else:
             C = np.zeros((n, n))
             for i in range(n):
                 ip1 = np.mod(i + 1, n)
-                C[i, i] = -float(p) / (k[i + p + 1] - k[i + 1])
-                C[i, ip1] = float(p) / (k[i + p + 1] - k[i + 1])
+                C[i, i] = -p / (k[i + p + 1] - k[i + 1])
+                C[i, ip1] = p / (k[i + p + 1] - k[i + 1])
 
         derivative_cps = np.tensordot(C, self.controlpoints, axes=(1, d))
         derivative_cps = derivative_cps.transpose(transpose_fix(self.pardim, d))
@@ -1245,7 +1245,7 @@ class SplineObject:
 
         return self
 
-    def bounding_box(self) -> list[tuple[float, float]]:
+    def bounding_box(self) -> list[tuple[Scalar, Scalar]]:
         """Gets the bounding box of a spline object, computed from the
         control-point values. Could be inaccurate for rational splines.
 
@@ -1257,12 +1257,12 @@ class SplineObject:
         """
         dim = self.dimension
 
-        result: list[tuple[float, float]] = []
+        result: list[tuple[Scalar, Scalar]] = []
         for i in range(dim):
             result.append(
                 (
-                    float(np.min(self.controlpoints[..., i])),
-                    float(np.max(self.controlpoints[..., i])),
+                    np.min(self.controlpoints[..., i]),
+                    np.max(self.controlpoints[..., i]),
                 )
             )
         return result

@@ -232,7 +232,7 @@ def torus(
     """
     circle = curve_factory.circle(minor_r)
     circle.rotate(pi / 2, (1, 0, 0))  # flip up into xz-plane
-    circle.translate((float(major_r), 0, 0))  # move into position to spin around z-axis
+    circle.translate((major_r, 0, 0))  # move into position to spin around z-axis
     result = revolve(circle)
 
     result.rotate(rotate_local_x_axis(xaxis, normal))
@@ -669,7 +669,7 @@ def thicken(curve: Curve, amount: Scalar | Callable[..., Scalar]) -> Surface:
                 left_points[i, 0] = x[i, 0] + v[i, 1] * dist  # x at top
                 left_points[i, 1] = x[i, 1] - v[i, 0] * dist  # y at top
         else:
-            a = float(cast("Scalar", amount))
+            a = cast("Scalar", amount)
             right_points[:, 0] = x[:, 0] - v[:, 1] * a  # x at bottom
             right_points[:, 1] = x[:, 1] + v[:, 0] * a  # y at bottom
             left_points[:, 0] = x[:, 0] + v[:, 1] * a  # x at top
