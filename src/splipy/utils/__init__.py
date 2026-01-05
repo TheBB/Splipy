@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Iterator, Sequence, Sized
 from itertools import combinations, product, repeat
 from math import atan2, sqrt
-from typing import TYPE_CHECKING, Any, Literal, SupportsFloat, TypeVar, Unpack, cast
+from typing import TYPE_CHECKING, Any, Literal, SupportsFloat, Unpack, cast
 
 import numpy as np
 
@@ -174,10 +174,7 @@ def is_singleton(x: Any) -> bool:
     return not isinstance(x, Sized)
 
 
-T = TypeVar("T")
-
-
-def ensure_listlike(x: T | Sequence[T], dups: int = 1) -> tuple[T, ...]:
+def ensure_listlike[T](x: T | Sequence[T], dups: int = 1) -> tuple[T, ...]:
     if isinstance(x, Sequence):
         y = tuple(x)
         while len(y) < dups:

@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Literal, TypedDict, TypeVar
+from typing import Literal, TypedDict
 
 import numpy as np
 import numpy.typing as npt
-
-B = TypeVar("B", bound=npt.NBitBase)
 
 # Anything that can be converted to an array. Use this type for parameters that
 # are (multidimensional) lists of points, such as controlpoints. Generally, only
