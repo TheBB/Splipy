@@ -194,7 +194,7 @@ class BSplineBasis:
         :rtype: numpy.array
         """
         t_arr = np.atleast_1d(np.asarray(t, dtype=np.float64))
-        splipy_core.snap(self.knots, t_arr, state.knot_tolerance)
+        splipy_core.snap_points(self.knots, t_arr, state.knot_tolerance)
 
         if self.order <= d:  # requesting more derivatives than polynomial degree: return all zeros
             return np.zeros((len(t_arr), self.num_functions()))
@@ -598,6 +598,16 @@ class BSplineBasis:
             atol=state.knot_tolerance,
         )
 
+    def snap_point(self, t: float) -> float:
+        """Snap evaluation point to knots if it is sufficiently close
+        as given in by state.state.knot_tolerance.
+
+        :param t: evaluation point
+        :type t: float
+        :return: float
+        """
+        return splipy_core.snap_point(self.knots, t, state.knot_tolerance)
+
     def snap_points(self, t: FloatArray) -> None:
         """Snap evaluation points to knots if they are sufficiently close
         as given in by state.state.knot_tolerance. This will modify the input
@@ -607,7 +617,7 @@ class BSplineBasis:
         :type t: [float]
         :return: none
         """
-        splipy_core.snap(self.knots, t, state.knot_tolerance)
+        splipy_core.snap_points(self.knots, t, state.knot_tolerance)
 
     # TODO(Eivind): Deprecate this later.
     def snap(self, t):  # type: ignore[no-untyped-def]

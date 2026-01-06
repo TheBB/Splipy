@@ -59,9 +59,9 @@ def evaluate(cnp.ndarray[cnp.float_t, ndim=1] knots_in,
 
     # wrap everything into c-type datastructures for optimized performance
     cdef cnp.float_t[:] knots = knots_in
-    cdef unsigned int n_all  = len(knots) - p  # number of basis functions (without periodicity)
-    cdef unsigned int n      = len(knots) - p - (periodic+1)  # number of basis functions (with periodicity)
-    cdef unsigned int m      = len(eval_t_in)
+    cdef unsigned int n_all   = len(knots) - p  # number of basis functions (without periodicity)
+    cdef unsigned int n       = len(knots) - p - (periodic+1)  # number of basis functions (with periodicity)
+    cdef unsigned int m       = len(eval_t_in)
     cdef cnp.float_t start    = knots[p-1]
     cdef cnp.float_t end      = knots[n_all]
     cdef cnp.float_t evalT
@@ -131,7 +131,7 @@ def evaluate(cnp.ndarray[cnp.float_t, ndim=1] knots_in,
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def snap(cnp.ndarray[cnp.float_t, ndim=1] knots_in,
+def snap_points(cnp.ndarray[cnp.float_t, ndim=1] knots_in,
          cnp.ndarray[cnp.float_t, ndim=1] eval_t_in,
          cnp.float_t tolerance):
     """  Snap evaluation points to knots if they are sufficiently close
@@ -153,3 +153,27 @@ def snap(cnp.ndarray[cnp.float_t, ndim=1] knots_in,
             t[j] = knots[i]
         elif i > 0 and abs(knots[i-1]-t[j]) < tolerance:
             t[j] = knots[i-1]
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def snap_point(cnp.ndarray[cnp.float_t, ndim=1] knots_in,
+         cnp.float_t eval_t_in,
+         cnp.float_t tolerance):
+    """  Snap singular evaluation point to knots if they are sufficiently
+    close as given in by state.state.knot_tolerance.
+
+    :param knots_in:     Knot vector
+    :param eval_t_in:    The parametric coordinate in which to evaluate
+    :param tolerance_in: Knot tolerance for detecting end-point-evaluations
+    :return: eval_t_in if sufficiently far from knot. Otherwise closest knot
+    """
+    cdef unsigned int   i,j
+    cdef unsigned int   n     = len(knots_in)
+    cdef cnp.float_t    t     = eval_t_in
+    cdef cnp.float_t[:] knots = knots_in
+    i = my_bisect_left(knots, t, n)
+    if i < n and abs(knots[i]-t) < tolerance:
+        t = knots[i]
+    elif i > 0 and abs(knots[i-1]-t) < tolerance:
+        t = knots[i-1]
+    return t

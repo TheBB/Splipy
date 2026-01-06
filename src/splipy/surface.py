@@ -303,6 +303,9 @@ class Surface(SplineObject):
         # clone basis since we need to augment this by knot insertion
         b = self.bases[direction].clone()
 
+        # snap to existing knot if close enough
+        knot = b.snap_point(knot)
+
         # compute mapping matrix C which is the knot insertion operator
         mult = b.min_continuity(knot, b.order - 1)
         C = np.identity(self.shape[direction])
