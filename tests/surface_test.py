@@ -6,7 +6,7 @@ from math import pi
 import numpy as np
 
 import splipy.surface_factory as sf
-from splipy import BSplineBasis, Surface
+from splipy import BSplineBasis, Curve, Surface
 
 
 class TestSurface(unittest.TestCase):
@@ -841,6 +841,21 @@ class TestSurface(unittest.TestCase):
         crv = surf.const_par_curve(1.0, "v")
         u = np.linspace(0, 1, 13)
         self.assertTrue(np.allclose(surf(u, 1.0).reshape(13, 2), crv(u)))
+
+        # check near internal knot (issue #168)
+        bu = BSplineBasis(4)
+        crv1 = Curve(bu, [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], raw=True)
+        crv2 = Curve(bu, [[0, 0, 3.5], [0.2, 0, 3.5], [0.2, 0.8, 3.5], [0, 0.7, 3.5]], raw=True)
+        crv3 = Curve(bu, [[0.2, -0.4, 5], [0.2, 1, 5], [0.6, 0.8, 5], [-0.5, 1.7, 5]], raw=True)
+        crv4 = Curve(bu, [[-0.2, 0.1, 7], [0.28, 1.5, 7], [0.1, -0.8, 7], [0.5, 1.0, 7]], raw=True)
+        srf = sf.loft(crv1, crv2, crv3, crv4)
+        srf.bases[1].normalize()
+        srf.insert_knot(0.85, direction=1)
+        pt1 = srf(0, 0.85 + 1e-11)
+        pt2 = srf.const_par_curve(0.85 + 1e-11, direction=1)(0)
+        self.assertTrue(np.allclose(pt1, pt2))
+        pt3 = srf.const_par_curve(0.85 - 1e-11, direction=1)(0)
+        self.assertTrue(np.allclose(pt1, pt3))
 
     def test_antiderivative(self):
         """Test that antiderivative inverts the derivative operation for surfaces."""
