@@ -46,6 +46,12 @@ jobs:
         run: |
           make test
 
+      - name: Report test coverage
+        uses: codecov/codecov-action@v5
+        with:
+          env_vars: OS,PYTHON
+          token: ${{ secrets.CODECOV_TOKEN }}
+
   build_core_wheels:
     name: Build wheels
     needs: [test]

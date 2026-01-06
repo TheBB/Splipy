@@ -31,7 +31,7 @@ lint:
 
 .PHONY: pytest
 pytest:
-	uv run pytest --benchmark-skip
+	uv run pytest --benchmark-skip --cov --cov-branch --cov-report=xml
 
 .PHONY: mypy
 mypy:

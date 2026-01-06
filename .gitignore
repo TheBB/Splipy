@@ -5,3 +5,5 @@ __pycache__
 /core/build
 /.mypy_cache
 *.egg-info
+/coverage.xml
+/.coverage
